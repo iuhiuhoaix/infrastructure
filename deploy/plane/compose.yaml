@@ -1,7 +1,8 @@
 # Plane (项目管理) — 独立 Compose，内部依赖自管（PG+Redis+MinIO）
 # 端口策略：
-#   - 127.0.0.1:3000:80 → Web（仅本机，Nginx → plane.example.com）
+#   - 3000:80 → Web（内网直连，对齐 GitLab；接 Nginx 反代后改回 127.0.0.1:3000）
 # 网络结构与 GitLab/RagFlow 一致：plane-web 挂 devops-internal + default
+# 数据：bind mount 到 ${PLANE_DATA_DIR:-./data}（.env 设 /dockerData/plane，与 GitLab 对齐）
 services:
   plane-web:
     image: makeplane/plane-frontend:stable
@@ -11,7 +12,7 @@ services:
     env_file: .env
     depends_on: [plane-api]
     ports:
-      - "127.0.0.1:3000:80"     # Web，仅本机
+      - "3000:80"               # Web，内网直连（对齐 GitLab）
     networks:
       default: {}
       devops-internal:
@@ -25,7 +26,7 @@ services:
     env_file: .env
     depends_on: [postgres, redis, minio]
     volumes:
-      - ./data/logs:/tmp
+      - ${PLANE_DATA_DIR:-./data}/logs:/tmp
     networks:
       default: {}
 
@@ -48,7 +49,7 @@ services:
       POSTGRES_USER: plane
       POSTGRES_PASSWORD: ${PGPASSWORD}
     volumes:
-      - ./data/postgres:/var/lib/postgresql/data
+      - ${PLANE_DATA_DIR:-./data}/postgres:/var/lib/postgresql/data
     networks:
       default: {}
 
@@ -57,7 +58,7 @@ services:
     container_name: plane-redis
     restart: unless-stopped
     volumes:
-      - ./data/redis:/data
+      - ${PLANE_DATA_DIR:-./data}/redis:/data
     networks:
       default: {}
 
@@ -70,7 +71,7 @@ services:
       MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID}
       MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY}
     volumes:
-      - ./data/minio:/data
+      - ${PLANE_DATA_DIR:-./data}/minio:/data
     networks:
       default: {}
 
