@@ -1,8 +1,14 @@
 # Plane (项目管理) — 独立 Compose，内部依赖自管（PG+Redis+RabbitMQ+MinIO）
 # 端口策略：
-#   - 3000:3000 → Web（内网直连，对齐 GitLab；镜像内 nginx 监听 3000；接 Nginx 反代后改回 127.0.0.1:3000）
-# 网络：plane-web 挂 devops-internal + default；后端/依赖锁 default
+#   - 3000:3000 → Web 统一入口（内网直连，对齐 GitLab；接 Nginx 反代后改回 127.0.0.1:3000）
+# 网络：plane-web 挂 devops-internal + default；其余服务/依赖锁 default
 # 数据：bind mount 到 ${PLANE_DATA_DIR:-./data}（.env 设 /dockerData/plane，与 GitLab 对齐）
+#
+# 前端 4 服务（微服务拆分，统一经 plane-web nginx 前缀路由）：
+#   plane-web     makeplane/plane-frontend  主应用 /，nginx 静态
+#   plane-admin   makeplane/plane-admin     /god-mode/（onboarding/实例设置）
+#   plane-space   makeplane/plane-space     /spaces/（公开空间）
+#   plane-live    makeplane/plane-live      /live/（实时协作 WS）
 #
 # 后端 4 服务（同镜像 makeplane/plane-backend，不同 command，对齐官方 selfhost）：
 #   plane-api       ./bin/docker-entrypoint-api.sh      （gunicorn/ASGI Web）
@@ -17,16 +23,40 @@ services:
     restart: unless-stopped
     hostname: plane
     env_file: .env
-    depends_on: [plane-api]
+    depends_on: [plane-api, plane-admin, plane-space, plane-live]
     ports:
-      - "3000:3000"             # Web，内网直连（对齐 GitLab；镜像内 nginx 监听 3000）
+      - "3000:3000"             # Web 统一入口（内网直连；镜像内 nginx 监听 3000）
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro   # 覆盖镜像配置，加 /api、/auth 反代到 plane-api
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro   # 统一路由 /api /auth /god-mode /spaces /live
     networks:
       default: {}
       devops-internal:
         aliases:
           - plane               # 跨服务用 http://plane 访问
+
+  plane-admin:
+    image: makeplane/plane-admin:stable
+    container_name: plane-admin
+    restart: unless-stopped
+    env_file: .env
+    networks:
+      default: {}
+
+  plane-space:
+    image: makeplane/plane-space:stable
+    container_name: plane-space
+    restart: unless-stopped
+    env_file: .env
+    networks:
+      default: {}
+
+  plane-live:
+    image: makeplane/plane-live:stable
+    container_name: plane-live
+    restart: unless-stopped
+    env_file: .env
+    networks:
+      default: {}
 
   plane-api:
     image: makeplane/plane-backend:stable
