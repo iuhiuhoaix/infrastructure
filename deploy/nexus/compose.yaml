@@ -3,7 +3,7 @@
 #    升级时显式改 NEXUS_IMAGE（.env 覆盖）并先做 blob 备份。
 #
 # 端口策略（只绑 127.0.0.1，由宿主机 Nginx 反代，不直接对外）：
-#   127.0.0.1:8082 -> 8081  Web UI / Maven / npm / NuGet / Generic
+#   127.0.0.1:8081 -> 8081  Web UI / Maven / npm / NuGet / Generic
 #   127.0.0.1:8083 -> 8082  Docker Registry（Nginx: reg.example.com, client_max_body_size 0）
 # 内部 CI 流量：Jenkins/Build Agent 经 devops-internal 直连 http://nexus:8081
 #
@@ -16,7 +16,7 @@ services:
     restart: unless-stopped
     env_file: .env
     ports:
-      - "127.0.0.1:8082:8081"   # UI + 依赖仓库
+      - "127.0.0.1:8081:8081"   # UI + 依赖仓库
       - "127.0.0.1:8083:8082"   # Docker Registry
     volumes:
       - ${NEXUS_DATA_DIR:-./data}:/nexus-data

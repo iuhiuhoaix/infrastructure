@@ -29,8 +29,8 @@ deploy/
 | GitLab SSH | :2222 | 是 | git clone ssh://git@git.example.com:2222 |
 | GitLab Web | 127.0.0.1:8080 | 否 | Nginx 反代 |
 | Plane | 127.0.0.1:3000 | 否 | Nginx 反代 |
-| Jenkins | 127.0.0.1:8081 | 否 | Nginx 反代 |
-| Nexus UI | 127.0.0.1:8082 | 否 | Nginx 反代 |
+| Jenkins | 127.0.0.1:8082 | 否 | Nginx 反代 |
+| Nexus UI | 127.0.0.1:8081 | 否 | Nginx 反代 |
 | Nexus Registry | 127.0.0.1:8083 | 否 | Nginx 反代 reg.example.com |
 | RagFlow | 127.0.0.1:9380 | 否 | Nginx 反代 |
 | 各 PG/Redis/ES/MinIO | — | 否 | 仅各自 default network |

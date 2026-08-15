@@ -28,8 +28,8 @@ nginx -t && systemctl reload nginx
 | git.example.com | 127.0.0.1:8080 | gitlab:80 |
 | reg.git.example.com | 127.0.0.1:8080 | gitlab 内置 registry |
 | plane.example.com | 127.0.0.1:3000 | plane-web:80 |
-| jenkins.example.com | 127.0.0.1:8081 | jenkins:8080 |
-| nexus.example.com | 127.0.0.1:8082 | nexus:8081 |
+| jenkins.example.com | 127.0.0.1:8082 | jenkins:8080 |
+| nexus.example.com | 127.0.0.1:8081 | nexus:8081 |
 | reg.example.com | 127.0.0.1:8083 | nexus:8082 (Docker Registry) |
 | rag.example.com | 127.0.0.1:9380 | ragflow:9380 |
 
