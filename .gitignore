@@ -1,0 +1,31 @@
+# ===== 项目元数据 / 工具 =====
+.workbuddy/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# ===== 密钥：.env 实际文件绝不入库，仅保留 .env.example =====
+.env
+**/.env
+!**/.env.example
+
+# ===== 运行时数据 / 备份产物（对应宿主机 /opt/devops/<app>/data|backup）=====
+# 只忽略各应用子目录下的运行时数据，保留 deploy/backup/ 脚本目录
+deploy/*/data/
+deploy/*/backup/
+deploy/*/logs/
+
+# ===== 备份包 / 加密文件 =====
+*.gpg
+*.tar
+*.tar.gz
+*.tar.xz
+
+# ===== 日志 =====
+*.log
+
+# ===== 临时 staging =====
+deploy/backup/staging/

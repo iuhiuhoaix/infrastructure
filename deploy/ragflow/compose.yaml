@@ -1,0 +1,75 @@
+# RagFlow — 独立 Compose，全套依赖自管（ES+PG+Redis+MinIO）
+# 端口策略：
+#   - 127.0.0.1:9380:9380 → Web/API（仅本机，Nginx → rag.example.com）
+# ES 内存大，单机建议至少 16G RAM。LLM API Key 走 .env
+# 升级：docker compose pull && up -d（含依赖一起升，零外部牵连）
+services:
+  ragflow:
+    image: infiniflow/ragflow:latest
+    container_name: ragflow
+    restart: unless-stopped
+    hostname: ragflow
+    env_file: .env
+    depends_on: [elasticsearch, postgres, redis, minio]
+    ports:
+      - "127.0.0.1:9380:9380"   # Web/API，仅本机
+    volumes:
+      - ./data/ragflow:/ragflow/data
+    networks:
+      default: {}
+      devops-internal:
+        aliases:
+          - ragflow
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.3
+    container_name: ragflow-es
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms2g -Xmx2g"
+    volumes:
+      - ./data/es:/usr/share/elasticsearch/data
+    networks:
+      default: {}
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: ragflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ragflow
+      POSTGRES_USER: ragflow
+      POSTGRES_PASSWORD: ${PGPASSWORD}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    networks:
+      default: {}
+
+  redis:
+    image: redis:7-alpine
+    container_name: ragflow-redis
+    restart: unless-stopped
+    volumes:
+      - ./data/redis:/data
+    networks:
+      default: {}
+
+  minio:
+    image: minio/minio:latest
+    container_name: ragflow-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
+    volumes:
+      - ./data/minio:/data
+    networks:
+      default: {}
+
+networks:
+  default: {}
+  devops-internal:
+    external: true

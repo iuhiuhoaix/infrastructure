@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docker Compose 部署架构设计 · 自建 DevOps 平台</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#0d1117;--surface:#161b22;--surface2:#1c2128;--border:#30363d;
+    --t1:#e6edf3;--t2:#7d8590;--t3:#484f58;
+    --plane:#a371f7;--gitlab:#f85149;--jenkins:#d29922;--nexus:#2f81f7;
+    --ragflow:#f778ba;--ai:#bc8cff;--nginx:#3fb950;--net:#2ee6a6;--infra:#f0883e;
+  }
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;line-height:1.65;font-size:14px}
+  .wrap{max-width:1280px;margin:0 auto;padding:0 24px 80px}
+  header{border-bottom:1px solid var(--border);padding:48px 24px 32px;text-align:center;background:linear-gradient(180deg,#161b22 0%,#0d1117 100%)}
+  header h1{font-size:28px;font-weight:600;letter-spacing:-0.5px;margin-bottom:12px}
+  header .subtitle{color:var(--t2);font-size:14px;margin-bottom:20px;max-width:820px;margin-left:auto;margin-right:auto}
+  .flow-chain{font-family:"SF Mono",Consolas,monospace;font-size:12px;color:var(--t2);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;display:inline-block;max-width:100%;overflow-x:auto}
+  .flow-chain b{color:var(--t1);font-weight:500}
+  .comp-tags{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:20px}
+  .comp-tags span{font-size:11px;padding:4px 12px;border-radius:20px;border:1px solid;font-weight:500}
+  .ct-plane{color:var(--plane);border-color:var(--plane)}
+  .ct-gitlab{color:var(--gitlab);border-color:var(--gitlab)}
+  .ct-jenkins{color:var(--jenkins);border-color:var(--jenkins)}
+  .ct-nexus{color:var(--nexus);border-color:var(--nexus)}
+  .ct-ragflow{color:var(--ragflow);border-color:var(--ragflow)}
+  .ct-nginx{color:var(--nginx);border-color:var(--nginx)}
+  .ct-net{color:var(--net);border-color:var(--net)}
+  nav{position:sticky;top:0;z-index:100;background:rgba(13,17,23,0.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 24px}
+  nav .nav-inner{max-width:1280px;margin:0 auto;display:flex;gap:4px;overflow-x:auto}
+  nav a{color:var(--t2);text-decoration:none;font-size:13px;padding:14px 16px;white-space:nowrap;border-bottom:2px solid transparent;transition:color .15s,border-color .15s}
+  nav a:hover{color:var(--t1)}
+  nav a.active{color:var(--ai);border-bottom-color:var(--ai)}
+  section{padding:48px 0 16px;scroll-margin-top:56px}
+  .sec-head{display:flex;align-items:baseline;gap:16px;margin-bottom:8px;flex-wrap:wrap}
+  .sec-num{font-size:13px;font-weight:600;color:var(--ai);background:rgba(188,140,255,0.1);border:1px solid rgba(188,140,255,0.3);border-radius:6px;padding:2px 10px}
+  .sec-head h2{font-size:22px;font-weight:600;letter-spacing:-0.3px}
+  .sec-desc{color:var(--t2);font-size:13px;margin-bottom:24px;max-width:920px}
+  .diagram-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;overflow:hidden}
+  .diagram-card svg{width:100%;height:auto;display:block}
+  .fig-cap{text-align:center;color:var(--t3);font-size:12px;margin-top:14px}
+  /* verdict block */
+  .verdict{background:rgba(63,185,80,0.06);border:1px solid rgba(63,185,80,0.35);border-left:4px solid var(--nginx);border-radius:8px;padding:16px 20px;margin:20px 0}
+  .verdict .vlabel{color:var(--nginx);font-weight:600;font-size:12px;letter-spacing:0.5px;margin-bottom:6px}
+  .verdict p{font-size:13.5px;color:var(--t1)}
+  .verdict code{color:var(--net)}
+  .warn{background:rgba(248,81,73,0.06);border:1px solid rgba(248,81,73,0.35);border-left:4px solid var(--gitlab);border-radius:8px;padding:14px 20px;margin:18px 0;font-size:13px}
+  /* compare table */
+  table{width:100%;border-collapse:collapse;margin:18px 0;font-size:13px}
+  th,td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top}
+  th{background:var(--surface2);color:var(--t1);font-weight:600;font-size:12.5px}
+  td{color:var(--t2)}
+  td.yes{color:var(--nginx)}
+  td.no{color:var(--gitlab)}
+  td.mid{color:var(--jenkins)}
+  tr.rec{background:rgba(63,185,80,0.05)}
+  tr.rec td:first-child{color:var(--nginx);font-weight:600}
+  /* code block */
+  pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px 18px;overflow-x:auto;font-family:"SF Mono",Consolas,monospace;font-size:12.5px;line-height:1.55;color:#c9d1d9;margin:14px 0}
+  code{font-family:"SF Mono",Consolas,monospace;font-size:12.5px;color:var(--net)}
+  p code,li code{background:var(--surface2);padding:1px 6px;border-radius:4px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
+  @media(max-width:820px){.grid2{grid-template-columns:1fr}}
+  .card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px 20px}
+  .card h4{font-size:14px;font-weight:600;margin-bottom:6px}
+  .card ul{margin:6px 0 0 18px;font-size:13px;color:var(--t2)}
+  .card li{margin:3px 0}
+  ul.body{margin:10px 0 10px 22px;color:var(--t2)}
+  ul.body li{margin:5px 0}
+  ul.body b{color:var(--t1)}
+  .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600;margin-left:6px}
+  .tag-rec{background:rgba(63,185,80,0.15);color:var(--nginx)}
+  .tag-crit{background:rgba(248,81,73,0.15);color:var(--gitlab)}
+  .tag-rebuild{background:rgba(210,153,34,0.15);color:var(--jenkins)}
+  footer{text-align:center;padding:40px 24px;color:var(--t3);font-size:12px;border-top:1px solid var(--border);margin-top:48px}
+  @media(max-width:768px){header h1{font-size:22px}.diagram-card{padding:14px}section{padding:32px 0 8px}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Docker Compose 部署架构设计</h1>
+  <p class="subtitle">自建 DevOps 平台 · 单 Docker Host 多独立 Compose · GitLab / Plane / Jenkins / Nexus / RagFlow + Nginx 统一入口 — 兼顾简单性、隔离性、可维护性、可备份性与可恢复性</p>
+  <div class="flow-chain">
+    Internet → <b>Host Nginx (TLS)</b> → <b>devops-internal</b> → { GitLab · Plane · Jenkins · Nexus · RagFlow } → Build Agents → Deployment
+  </div>
+  <div class="comp-tags">
+    <span class="ct-nginx">Nginx (宿主机)</span>
+    <span class="ct-gitlab">GitLab</span>
+    <span class="ct-plane">Plane</span>
+    <span class="ct-jenkins">Jenkins</span>
+    <span class="ct-nexus">Nexus</span>
+    <span class="ct-ragflow">RagFlow</span>
+    <span class="ct-net">devops-internal</span>
+  </div>
+</header>
+
+<nav>
+  <div class="nav-inner">
+    <a href="#s1" class="active">① 总体部署</a>
+    <a href="#s2">② Compose 划分</a>
+    <a href="#s3">③ Docker Network</a>
+    <a href="#s4">④ 服务发现</a>
+    <a href="#s5">⑤ Nginx 反代</a>
+    <a href="#s6">⑥ GitLab</a>
+    <a href="#s7">⑦ Jenkins/Agent</a>
+    <a href="#s8">⑧ Nexus</a>
+    <a href="#s9">⑨ RagFlow</a>
+    <a href="#s10">⑩ 持久化</a>
+    <a href="#s11">⑪ 备份</a>
+    <a href="#s12">⑫ 目录</a>
+    <a href="#s13">⑬ Secret</a>
+    <a href="#s14">⑭ 升级</a>
+    <a href="#s15">⑮ 灾难恢复</a>
+    <a href="#s16">⑯ 最终推荐</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<!-- ============ S1 总体部署 ============ -->
+<section id="s1">
+  <div class="sec-head"><span class="sec-num">01</span><h2>总体部署架构</h2></div>
+  <p class="sec-desc">单台 Linux Docker Host / VM 承载全部核心应用。宿主机 Nginx 作为唯一对外 TLS 入口，反代到 Docker 内部网络 <code>devops-internal</code>。每个核心应用独立 Compose、独立生命周期，内部依赖（PG/Redis/ES/MinIO）由各自 Compose 自管并隔离在 default network。构建 Agent 可脱离 Docker Host 独立部署。</p>
+  <div class="diagram-card">
+<svg viewBox="0 0 680 720" role="img">
+  <title>总体部署架构</title>
+  <defs>
+    <marker id="a1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  </defs>
+  <text x="340" y="24" text-anchor="middle" fill="#e6edf3" font-size="15" font-weight="500" font-family="sans-serif">总体部署架构 · 单 Host 多 Compose</text>
+  <!-- Internet -->
+  <rect x="250" y="44" width="180" height="40" rx="8" fill="#1a2230" stroke="#7d8590" stroke-width="0.8"/>
+  <text x="340" y="68" text-anchor="middle" fill="#c9d1d9" font-size="12.5" font-family="sans-serif">Internet / LAN</text>
+  <line x1="340" y1="84" x2="340" y2="102" stroke="#7d8590" stroke-width="1.5" marker-end="url(#a1)"/>
+  <!-- Nginx host -->
+  <rect x="120" y="104" width="440" height="56" rx="10" fill="#0d2818" stroke="#3fb950" stroke-width="1"/>
+  <text x="340" y="126" text-anchor="middle" fill="#9FE1CB" font-size="13.5" font-weight="600" font-family="sans-serif">Host Nginx (宿主机进程)</text>
+  <text x="340" y="144" text-anchor="middle" fill="#5DCAA5" font-size="11.5" font-family="sans-serif">TLS 终结 · :80→:443 跳转 · 反代到容器名 · WebSocket 透传</text>
+  <line x1="340" y1="160" x2="340" y2="180" stroke="#3fb950" stroke-width="1.5" marker-end="url(#a1)"/>
+  <text x="352" y="176" fill="#3fb950" font-size="10.5" font-family="sans-serif">只走容器名, 不走宿主机端口</text>
+  <!-- Docker host boundary -->
+  <rect x="40" y="182" width="600" height="470" rx="12" fill="none" stroke="#30363d" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <text x="56" y="200" fill="#7d8590" font-size="11.5" font-family="sans-serif">Docker Host / VM</text>
+  <text x="624" y="200" text-anchor="end" fill="#2ee6a6" font-size="11" font-family="sans-serif">network: devops-internal (external)</text>
+  <!-- devops-internal band -->
+  <rect x="56" y="210" width="568" height="372" rx="10" fill="#0e2a24" stroke="#1d9e75" stroke-width="0.8" stroke-opacity="0.6"/>
+  <text x="68" y="228" fill="#2ee6a6" font-size="11" font-family="sans-serif">devops-internal（跨 Compose 共享，仅放各应用的"对外服务容器"）</text>
+  <!-- 5 app boxes -->
+  <!-- GitLab -->
+  <g><rect x="68" y="240" width="168" height="92" rx="8" fill="#2a1414" stroke="#f85149" stroke-width="0.9"/><text x="152" y="262" text-anchor="middle" fill="#ffa19b" font-size="13" font-weight="600" font-family="sans-serif">GitLab</text><text x="152" y="280" text-anchor="middle" fill="#f5a3a0" font-size="10.5" font-family="sans-serif">git.example.com</text><text x="152" y="300" text-anchor="middle" fill="#c97a78" font-size="10" font-family="sans-serif">Web/MR/Registry/SSH</text><text x="152" y="318" text-anchor="middle" fill="#7d8590" font-size="9.5" font-family="sans-serif">内含 PG+Redis(独立net)</text></g>
+  <!-- Plane -->
+  <g><rect x="256" y="240" width="168" height="92" rx="8" fill="#241a3a" stroke="#a371f7" stroke-width="0.9"/><text x="340" y="262" text-anchor="middle" fill="#cbb6ff" font-size="13" font-weight="600" font-family="sans-serif">Plane</text><text x="340" y="280" text-anchor="middle" fill="#b79aff" font-size="10.5" font-family="sans-serif">plane.example.com</text><text x="340" y="300" text-anchor="middle" fill="#8e74c7" font-size="10" font-family="sans-serif">项目/需求/任务</text><text x="340" y="318" text-anchor="middle" fill="#7d8590" font-size="9.5" font-family="sans-serif">内含 PG+Redis+MinIO</text></g>
+  <!-- Jenkins -->
+  <g><rect x="444" y="240" width="168" height="92" rx="8" fill="#2b2410" stroke="#d29922" stroke-width="0.9"/><text x="528" y="262" text-anchor="middle" fill="#f5cd6b" font-size="13" font-weight="600" font-family="sans-serif">Jenkins</text><text x="528" y="280" text-anchor="middle" fill="#e8b94a" font-size="10.5" font-family="sans-serif">jenkins.example.com</text><text x="528" y="300" text-anchor="middle" fill="#a98823" font-size="10" font-family="sans-serif">Controller</text><text x="528" y="318" text-anchor="middle" fill="#7d8590" font-size="9.5" font-family="sans-serif">无内置DB(可选PG)</text></g>
+  <!-- Nexus -->
+  <g><rect x="68" y="372" width="168" height="92" rx="8" fill="#0f2236" stroke="#2f81f7" stroke-width="0.9"/><text x="152" y="394" text-anchor="middle" fill="#9cc3f5" font-size="13" font-weight="600" font-family="sans-serif">Nexus</text><text x="152" y="412" text-anchor="middle" fill="#74a6e8" font-size="10.5" font-family="sans-serif">nexus.example.com</text><text x="152" y="432" text-anchor="middle" fill="#5a82b8" font-size="10" font-family="sans-serif">Maven/npm/NuGet/Docker</text><text x="152" y="450" text-anchor="middle" fill="#7d8590" font-size="9.5" font-family="sans-serif">单容器, blob外部卷</text></g>
+  <!-- RagFlow -->
+  <g><rect x="256" y="372" width="168" height="92" rx="8" fill="#2c1530" stroke="#f778ba" stroke-width="0.9"/><text x="340" y="394" text-anchor="middle" fill="#f5a8d4" font-size="13" font-weight="600" font-family="sans-serif">RagFlow</text><text x="340" y="412" text-anchor="middle" fill="#ee84b8" font-size="10.5" font-family="sans-serif">rag.example.com</text><text x="340" y="432" text-anchor="middle" fill="#b85a8e" font-size="10" font-family="sans-serif">知识库/检索/Embedding</text><text x="340" y="450" text-anchor="middle" fill="#7d8590" font-size="9.5" font-family="sans-serif">内含 ES+PG+Redis+MinIO</text></g>
+  <!-- Docker Registry (as Nexus sub) note -->
+  <g><rect x="444" y="372" width="168" height="92" rx="8" fill="#1c2128" stroke="#484f58" stroke-width="0.8" stroke-dasharray="4 3"/><text x="528" y="394" text-anchor="middle" fill="#b4b2a9" font-size="12.5" font-weight="600" font-family="sans-serif">可选扩展位</text><text x="528" y="414" text-anchor="middle" fill="#7d8590" font-size="10.5" font-family="sans-serif">独立 Registry / MinIO共享</text><text x="528" y="432" text-anchor="middle" fill="#7d8590" font-size="10.5" font-family="sans-serif">Gitea / Harbor …</text><text x="528" y="452" text-anchor="middle" fill="#484f58" font-size="9.5" font-family="sans-serif">按需加入 devops-internal</text></g>
+  <!-- backup band -->
+  <rect x="56" y="600" width="568" height="40" rx="8" fill="#2a1410" stroke="#d85a30" stroke-width="0.8"/>
+  <text x="340" y="624" text-anchor="middle" fill="#f0997b" font-size="12" font-family="sans-serif">统一备份：按应用分别 dump → /opt/devops/backup/ → 异地 rsync · Daily/Weekly/Monthly</text>
+  <line x1="340" y1="464" x2="340" y2="598" stroke="#484f58" stroke-width="1" stroke-dasharray="3 3"/>
+  <!-- agents -->
+  <line x1="152" y1="640" x2="152" y2="656" stroke="#7d8590" stroke-width="1.5" marker-end="url(#a1)"/>
+  <line x1="340" y1="640" x2="340" y2="656" stroke="#7d8590" stroke-width="1.5" marker-end="url(#a1)"/>
+  <line x1="528" y1="640" x2="528" y2="656" stroke="#7d8590" stroke-width="1.5" marker-end="url(#a1)"/>
+  <g><rect x="68" y="658" width="148" height="44" rx="7" fill="#332618" stroke="#f0883e" stroke-width="0.8"/><text x="142" y="678" text-anchor="middle" fill="#f5b682" font-size="11.5" font-weight="500" font-family="sans-serif">Linux Docker Agent</text><text x="142" y="694" text-anchor="middle" fill="#c4885a" font-size="10" font-family="sans-serif">WebSocket inbound</text></g>
+  <g><rect x="266" y="658" width="148" height="44" rx="7" fill="#332618" stroke="#f0883e" stroke-width="0.8"/><text x="340" y="678" text-anchor="middle" fill="#f5b682" font-size="11.5" font-weight="500" font-family="sans-serif">Windows Agent</text><text x="340" y="694" text-anchor="middle" fill="#c4885a" font-size="10" font-family="sans-serif">独立 Win Server · JNLP</text></g>
+  <g><rect x="464" y="658" width="148" height="44" rx="7" fill="#332618" stroke="#f0883e" stroke-width="0.8"/><text x="538" y="678" text-anchor="middle" fill="#f5b682" font-size="11.5" font-weight="500" font-family="sans-serif">Deployment Targets</text><text x="538" y="694" text-anchor="middle" fill="#c4885a" font-size="10" font-family="sans-serif">客户站点 / SaaS</text></g>
+</svg>
+  </div>
+  <p class="fig-cap">图 ① 总体部署架构：宿主机 Nginx → devops-internal → 各独立 Compose 应用 → 构建基础设施</p>
+
+  <div class="verdict">
+    <div class="vlabel">推荐结论</div>
+    <p><b>每核心应用独立 Compose</b>（gitlab / plane / jenkins / nexus / ragflow 各一份），内部依赖自管；<b>external network <code>devops-internal</code></b> 只承载各应用的"对外服务容器"用于跨服务通信；<b>宿主机 Nginx</b> 作唯一 TLS 入口；对外只暴露 <code>80/443</code>（+ GitLab SSH）。构建 Agent 脱离 Docker Host 独立部署。</p>
+  </div>
+</section>
+
+<!-- ============ S2 Compose 划分 ============ -->
+<section id="s2">
+  <div class="sec-head"><span class="sec-num">02</span><h2>Compose 划分决策：一个还是多个</h2></div>
+  <p class="sec-desc">这是整套架构的根决策。从运维、升级、备份、故障隔离、迁移、扩容六个维度比较三种方案，结论明确指向"按数据边界拆分独立 Compose"。</p>
+
+  <table>
+    <thead><tr><th>维度</th><th>方案 A：单 Compose 全量</th><th>方案 B：每应用独立 Compose（依赖外部共享）</th><th>方案 C：每应用独立 Compose（依赖自管）</th></tr></thead>
+    <tbody>
+      <tr><td>运维复杂度</td><td>低（一份文件）</td><td>中</td><td>中</td></tr>
+      <tr><td>升级复杂度</td><td class="no">高：任一服务 pull/up 全部重启</td><td class="yes">低：单应用独立升级</td><td class="yes">低：单应用独立升级</td></tr>
+      <tr><td>数据备份</td><td class="mid">边界模糊，需手动拆分</td><td class="yes">边界清晰</td><td class="yes">边界最清晰：一应用一目录</td></tr>
+      <tr><td>故障隔离</td><td class="no">差：一服务崩易拖垮整体编排</td><td class="yes">好</td><td class="yes">好</td></tr>
+      <tr><td>网络隔离</td><td class="no">差：默认全互通</td><td class="mid">中：依赖共享网络</td><td class="yes">好：内部依赖锁在 default</td></tr>
+      <tr><td>依赖管理</td><td class="mid">共享一份 PG/Redis（耦合）</td><td class="mid">依赖外部共享组件</td><td class="yes">自管，版本与应用匹配</td></tr>
+      <tr><td>版本管理</td><td class="no">所有依赖版本被迫统一</td><td class="mid">共享组件升级影响多应用</td><td class="yes">各应用各依赖版本独立</td></tr>
+      <tr><td>Compose 生命周期</td><td class="no">整体起停</td><td class="yes">独立起停</td><td class="yes">独立起停</td></tr>
+      <tr><td>宿主机迁移</td><td class="mid">单文件好搬，但数据混在一起</td><td class="mid">需迁应用+共享依赖</td><td class="yes">按应用目录整体搬迁</td></tr>
+      <tr><td>灾难恢复</td><td class="no">整体恢复，粒度粗</td><td class="mid">中</td><td class="yes">好：按应用逐个恢复验证</td></tr>
+      <tr><td>后续扩容</td><td class="no">难拆分</td><td class="yes">易</td><td class="yes">易</td></tr>
+      <tr class="rec"><td>推荐</td><td class="no">✗ 不推荐</td><td>△ 可选</td><td class="yes">✓ 强烈推荐</td></tr>
+    </tbody>
+  </table>
+
+  <p><b>方案 A 为什么被否：</b>中小团队看起来"一份文件省事"，但 <code>docker compose up -d</code> 是项目级操作——升级 RagFlow 会让 GitLab/Jenkins 跟着重启；PG/Redis 版本被 GitLab 和 Plane 绑死，谁也升不动；备份时所有 volume 混在一个项目里，灾难恢复只能"全有或全无"。</p>
+
+  <p><b>方案 B vs C 的关键区别在"内部依赖归谁管"：</b>方案 B 抽一个共享的 PostgreSQL/Redis/MinIO Compose 给所有应用用，省内存但引入强耦合（Plane 升 PG 影响 RagFlow）。方案 C 让每个应用自带匹配版本的依赖，隔离在各自 default network。<b>当前规模（单机、中小团队）选 C</b>：内存多花一点（5 个 PG 实例），换来升级零耦合、迁移零牵连、故障零传染。等任一应用数据量增长到需要独立优化时，再单独抽基础设施也不迟。</p>
+
+  <div class="diagram-card">
+<svg viewBox="0 0 680 470" role="img">
+  <title>Compose 划分</title>
+  <defs><marker id="a2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+  <text x="340" y="24" text-anchor="middle" fill="#e6edf3" font-size="15" font-weight="500" font-family="sans-serif">方案 C：按数据边界拆分独立 Compose</text>
+  <!-- 5 compose files -->
+  <g><rect x="24" y="50" width="124" height="200" rx="8" fill="#2a1414" stroke="#f85149" stroke-width="0.9"/><text x="86" y="72" text-anchor="middle" fill="#ffa19b" font-size="12.5" font-weight="600" font-family="sans-serif">gitlab/</text><text x="86" y="90" text-anchor="middle" fill="#c97a78" font-size="9.5" font-family="sans-serif">compose.yaml</text>
+    <rect x="36" y="104" width="100" height="24" rx="4" fill="#1c2128" stroke="#f85149" stroke-width="0.6"/><text x="86" y="120" text-anchor="middle" fill="#f5a3a0" font-size="10.5" font-family="sans-serif">gitlab</text>
+    <rect x="36" y="134" width="100" height="22" rx="4" fill="#1c2128" stroke="#7d8590" stroke-width="0.5" stroke-dasharray="3 2"/><text x="86" y="149" text-anchor="middle" fill="#7d8590" font-size="9.5" font-family="sans-serif">postgres</text>
+    <rect x="36" y="160" width="100" height="22" rx="4" fill="#1c2128" stroke="#7d8590" stroke-width="0.5" stroke-dasharray="3 2"/><text x="86" y="175" text-anchor="middle" fill="#7d8590" font-size="9.5" font-family="sans-serif">redis</text>
+    <text x="86" y="202" text-anchor="middle" fill="#484f58" font-size="9" font-family="sans-serif">default net 内部</text>
+    <text x="86" y="218" text-anchor="middle" fill="#484f58" font-size="9" font-family="sans-serif">独立升级/备份</text>
+  </g>
+  <g><rect x="156" y="50" width="124" height="200" rx="8" fill="#241a3a" stroke="#a371f7" stroke-width="0.9"/><text x="218" y="72" text-anchor="middle" fill="#cbb6ff" font-size="12.5" font-weight="600" font-family="sans-serif">plane/</text><text x="218" y="90" text-anchor="middle" fill="#8e74c7" font-size="9.5" font-family="sans-serif">compose.yaml</text>
+    <rect x="168" y="104" width="100" height="24" rx="4" fill="#1c2128" stroke="#a371f7" stroke-width="0.6"/><text x="218" y="120" text-anchor="middle" fill="#b79aff" font-size="10.5" font-family="sans-serif">plane-web</text>
+    <rect x="168" y="134" width="100" height="22" rx="4" fill="#1c2128" stroke="#7d8590" stroke-width="0.5" stroke-dasharray="3 2"/><text x="218" y="149" text-anchor="middle" fill="#7d8590" font-size="9.5" font-family="sans-serif">postgres</text>
+    <rect x="168" y="160" width="100" height="22" rx="4" fill="#1c2128" stroke="#7d8590" stroke-width="0.5" stroke-dasharray="3 2"/><text x="218" y="175" text-anchor="middle" fill="#7d8590" font-size="9.5" font-family="sans-serif">redis/minio</text>
+    <text x="218" y="202" text-anchor="middle" fill="#484f58" font-size="9" font-family="sans-serif">default net 内部</text>
+    <text x="218" y="218" text-anchor="middle" fill="#484f58" font-size="9" font-family="sans-serif">独立升级/备份</text>
+  </g>
+  <g><rect x="288" y="50" width="124" height="200" rx="8" fill="#2b2410" stroke="#d29922" stroke-width="0.9"/><text x="350" y="72" text-anchor="middle" fill="#f5cd6b" font-size="12.5" font-weight="600" font-family="sans-serif">jenkins/</text><text x="350" y="90" text-anchor="middle" fill="#a98823" font-size="9.5" font-family="sans-serif">compose.yaml</text>
+    <rect x="300" y="104" width="100" height="24" rx="4" fill="#1c2128" stroke="#d29922" stroke-width="0.6"/><text x="350" y="120" text-anchor="middle" fill="#e8b94a" font-size="10.5" font-family="sans-serif">jenkins</text>
+    <rect x="300" y="134" width="100" height="22" rx="4" fill="#1c2128" stroke="#7d8590" stroke-width="0.5" stroke-dasharray="3 2"/><text x="350" y="149" text-anchor="middle" fill="#7d8590" font-size="9.5" font-family="sans-serif">(可选) dind</text>
+    <text x="350" y="202" text-anchor="middle" fill="#484f58" font-size="9" font-family="sans-serif">Agent 跨主机</text>
+    <text x="350" y="218" text-anchor="middle" fill="#484f58" font-size="9" font-family="sans-serif">独立升级/备份</text>
+  </g>
+  <g><rect x="420" y="50" width="124" height="200" rx="8" fill="#0f2236" stroke="#2f81f7" stroke-width="0.9"/><text x="482" y="72" text-anchor="middle" fill="#9cc3f5" font-size="12.5" font-weight="600" font-family="sans-serif">nexus/</text><text x="482" y="90" text-anchor="middle" fill="#5a82b8" font-size="9.5" font-family="sans-serif">compose.yaml</text>
+    <rect x="432" y="104" width="100" height="24" rx="4" fill="#1c2128" stroke="#2f81f7" stroke-width="0.6"/><text x="482" y="120" text-anchor="middle" fill="#74a6e8" font-size="10.5" font-family="sans-serif">nexus</text>
+    <text x="482" y="202" text-anchor="middle" fill="#484f58" font-size="9" font-family="sans-serif">单容器, 无内部依赖</text>
+    <text x="482" y="218" text-anchor="middle" fill="#484f58" font-size="9" font-family="sans-serif">独立升级/备份</text>
+  </g>
+  <g><rect x="552" y="50" width="108" height="200" rx="8" fill="#2c1530" stroke="#f778ba" stroke-width="0.9"/><text x="606" y="72" text-anchor="middle" fill="#f5a8d4" font-size="12.5" font-weight="600" font-family="sans-serif">ragflow/</text><text x="606" y="90" text-anchor="middle" fill="#b85a8e" font-size="9.5" font-family="sans-serif">compose.yaml</text>
+    <rect x="562" y="104" width="88" height="24" rx="4" fill="#1c2128" stroke="#f778ba" stroke-width="0.6"/><text x="606" y="120" text-anchor="middle" fill="#ee84b8" font-size="10.5" font-family="sans-serif">ragflow</text>
+    <rect x="562" y="134" width="88" height="22" rx="4" fill="#1c2128" stroke="#7d8590" stroke-width="0.5" stroke-dasharray="3 2"/><text x="606" y="149" text-anchor="middle" fill="#7d8590" font-size="9" font-family="sans-serif">es/redis</text>
+    <rect x="562" y="160" width="88" height="22" rx="4" fill="#1c2128" stroke="#7d8590" stroke-width="0.5" stroke-dasharray="3 2"/><text x="606" y="175" text-anchor="middle" fill="#7d8590" font-size="9" font-family="sans-serif">pg/minio</text>
+    <text x="606" y="202" text-anchor="middle" fill="#484f58" font-size="9" font-family="sans-serif">default net</text>
+    <text x="606" y="218" text-anchor="middle" fill="#484f58" font-size="9" font-family="sans-serif">独立升级/备份</text>
+  </g>
+  <!-- devops-internal band below -->
+  <rect x="24" y="280" width="636" height="120" rx="10" fill="#0e2a24" stroke="#1d9e75" stroke-width="0.9"/>
+  <text x="40" y="300" fill="#2ee6a6" font-size="12" font-weight="500" font-family="sans-serif">external network: devops-internal</text>
+  <text x="40" y="318" fill="#5DCAA5" font-size="11" font-family="sans-serif">只接入每个应用的"对外服务容器"（实线框），内部依赖（虚线框）绝不接入</text>
+  <line x1="86" y1="278" x2="86" y2="280" stroke="#1d9e75" stroke-width="1.2"/>
+  <line x1="218" y1="278" x2="218" y2="280" stroke="#1d9e75" stroke-width="1.2"/>
+  <line x1="350" y1="278" x2="350" y2="280" stroke="#1d9e75" stroke-width="1.2"/>
+  <line x1="482" y1="278" x2="482" y2="280" stroke="#1d9e75" stroke-width="1.2"/>
+  <line x1="606" y1="278" x2="606" y2="280" stroke="#1d9e75" stroke-width="1.2"/>
+  <text x="340" y="360" text-anchor="middle" fill="#9FE1CB" font-size="11.5" font-family="sans-serif">跨 Compose 通信只发生在这一层 · Docker DNS 解析容器名/alias</text>
+  <text x="340" y="378" text-anchor="middle" fill="#7d8590" font-size="10.5" font-family="sans-serif">升级任一应用 = 在该应用目录执行 pull && up -d，其余应用零感知</text>
+  <text x="340" y="430" text-anchor="middle" fill="#484f58" font-size="11" font-family="sans-serif">实线 = 接入 devops-internal 的对外容器　·　虚线 = 锁在该应用 default network 的内部依赖</text>
+</svg>
+  </div>
+  <p class="fig-cap">图 ② Compose 划分：5 份独立 compose，各管各的依赖，共享一个 external network</p>
+</section>
+
+<!-- ============ S3 Docker Network ============ -->
+<section id="s3">
+  <div class="sec-head"><span class="sec-num">03</span><h2>Docker Network 深度分析</h2></div>
+  <p class="sec-desc">三种网络方案的取舍，以及为什么"external 共享网络 + 各自 default 网络"的双网络模型是当前规模的最佳解。</p>
+
+  <table>
+    <thead><tr><th>维度</th><th>方案1：每 Compose 独立 network</th><th>方案2：external 共享 + 各自 default</th><th>方案3：完全共享一个 network</th></tr></thead>
+    <tbody>
+      <tr><td>跨服务通信</td><td class="no">需 hosts/端口映射，DNS 不可跨 Compose</td><td class="yes">容器名直连，DNS 全局可用</td><td class="yes">直连</td></tr>
+      <tr><td>隔离性</td><td class="yes">最强</td><td class="yes">好：内部依赖锁在 default</td><td class="no">最差：全互通</td></tr>
+      <tr><td>攻击面</td><td class="yes">最小</td><td class="yes">可控（只对外容器上网）</td><td class="no">最大：PG/Redis 也暴露给邻居</td></tr>
+      <tr><td>服务发现</td><td class="no">困难</td><td class="yes">alias 即服务名</td><td class="yes">全局</td></tr>
+      <tr><td>升级影响</td><td class="mid">网络重建可能断连</td><td class="yes">external 不随 compose 重建</td><td class="yes">无影响</td></tr>
+      <tr><td>配置复杂度</td><td class="no">高（需手动配互通）</td><td class="mid">中（声明两个 network）</td><td class="yes">低</td></tr>
+      <tr class="rec"><td>推荐</td><td class="no">✗</td><td class="yes">✓ 强烈推荐</td><td class="no">✗</td></tr>
+    </tbody>
+  </table>
+
+  <p><b>方案 2 的核心思想：分层网络。</b>每个应用有两个网络身份——<code>default</code>（项目私有，承载主服务 + 它的 PG/Redis/ES/MinIO，邻居进不来）和 <code>devops-internal</code>（external，只把"需要被别的应用访问的那个容器"挂上去）。这样 Nexus 能通过 <code>http://gitlab</code> 拉 GitLab，但 Nexus <b>碰不到</b> GitLab 的 PostgreSQL——后者只存在于 <code>gitlab_default</code>。</p>
+
+  <p><b>为什么不是方案 3：</b>把所有容器（含 5 个 PostgreSQL、5 个 Redis、ES）全塞进 <code>devops-internal</code>，等于让 Jenkins 能直连 RagFlow 的 PostgreSQL、让 GitLab 能直连 Plane 的 Redis。隔离归零，攻击面拉满，某个容器被入侵后横向移动毫无阻力。违背"服务之间合理隔离"的硬性目标。</p>
+
+  <div class="diagram-card">
+<svg viewBox="0 0 680 540" role="img">
+  <title>Docker Network 架构</title>
+  <defs><marker id="a3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+  <text x="340" y="24" text-anchor="middle" fill="#e6edf3" font-size="15" font-weight="500" font-family="sans-serif">双网络模型：external 共享层 + 各应用 default 隔离层</text>
+  <!-- top: devops-internal layer -->
+  <rect x="20" y="44" width="640" height="160" rx="10" fill="#0e2a24" stroke="#1d9e75" stroke-width="1"/>
+  <text x="36" y="64" fill="#2ee6a6" font-size="12.5" font-weight="600" font-family="sans-serif">devops-internal (external network) — 跨 Compose 通信层</text>
+  <g><rect x="40" y="80" width="108" height="36" rx="6" fill="#2a1414" stroke="#f85149" stroke-width="0.9"/><text x="94" y="103" text-anchor="middle" fill="#f5a3a0" font-size="11.5" font-family="sans-serif">gitlab</text></g>
+  <g><rect x="160" y="80" width="108" height="36" rx="6" fill="#241a3a" stroke="#a371f7" stroke-width="0.9"/><text x="214" y="103" text-anchor="middle" fill="#b79aff" font-size="11.5" font-family="sans-serif">plane</text></g>
+  <g><rect x="280" y="80" width="108" height="36" rx="6" fill="#2b2410" stroke="#d29922" stroke-width="0.9"/><text x="334" y="103" text-anchor="middle" fill="#e8b94a" font-size="11.5" font-family="sans-serif">jenkins</text></g>
+  <g><rect x="400" y="80" width="108" height="36" rx="6" fill="#0f2236" stroke="#2f81f7" stroke-width="0.9"/><text x="454" y="103" text-anchor="middle" fill="#74a6e8" font-size="11.5" font-family="sans-serif">nexus</text></g>
+  <g><rect x="520" y="80" width="108" height="36" rx="6" fill="#2c1530" stroke="#f778ba" stroke-width="0.9"/><text x="574" y="103" text-anchor="middle" fill="#ee84b8" font-size="11.5" font-family="sans-serif">ragflow</text></g>
+  <text x="340" y="140" text-anchor="middle" fill="#5DCAA5" font-size="11" font-family="sans-serif">只放"对外服务容器"，通过 alias 互访：http://gitlab http://nexus ...</text>
+  <text x="340" y="158" text-anchor="middle" fill="#7d8590" font-size="10.5" font-family="sans-serif">external = true → 不随任何 compose up/down 重建，升级零断连</text>
+  <!-- connectors down to each default -->
+  <line x1="94" y1="204" x2="94" y2="224" stroke="#484f58" stroke-width="1.2" stroke-dasharray="4 3"/>
+  <line x1="214" y1="204" x2="214" y2="224" stroke="#484f58" stroke-width="1.2" stroke-dasharray="4 3"/>
+  <line x1="334" y1="204" x2="334" y2="224" stroke="#484f58" stroke-width="1.2" stroke-dasharray="4 3"/>
+  <line x1="454" y1="204" x2="454" y2="224" stroke="#484f58" stroke-width="1.2" stroke-dasharray="4 3"/>
+  <line x1="574" y1="204" x2="574" y2="224" stroke="#484f58" stroke-width="1.2" stroke-dasharray="4 3"/>
+  <text x="660" y="218" text-anchor="end" fill="#484f58" font-size="9.5" font-family="sans-serif">同一容器同时挂在两个网络</text>
+  <!-- bottom: 5 default networks -->
+  <g><rect x="24" y="226" width="140" height="150" rx="8" fill="#1a1414" stroke="#f85149" stroke-width="0.7" stroke-dasharray="5 3"/><text x="94" y="246" text-anchor="middle" fill="#c97a78" font-size="11" font-weight="500" font-family="sans-serif">gitlab_default</text>
+    <rect x="36" y="258" width="116" height="22" rx="4" fill="#2a1414" stroke="#f85149" stroke-width="0.5"/><text x="94" y="273" text-anchor="middle" fill="#f5a3a0" font-size="10" font-family="sans-serif">gitlab</text>
+    <rect x="36" y="286" width="116" height="22" rx="4" fill="#1c2128" stroke="#7d8590" stroke-width="0.4"/><text x="94" y="301" text-anchor="middle" fill="#7d8590" font-size="10" font-family="sans-serif">postgres</text>
+    <rect x="36" y="314" width="116" height="22" rx="4" fill="#1c2128" stroke="#7d8590" stroke-width="0.4"/><text x="94" y="329" text-anchor="middle" fill="#7d8590" font-size="10" font-family="sans-serif">redis</text>
+    <text x="94" y="358" text-anchor="middle" fill="#484f58" font-size="9.5" font-family="sans-serif">邻居不可见</text></g>
+  <g><rect x="172" y="226" width="84" height="150" rx="8" fill="#1a1a2a" stroke="#a371f7" stroke-width="0.7" stroke-dasharray="5 3"/><text x="214" y="246" text-anchor="middle" fill="#8e74c7" font-size="10.5" font-weight="500" font-family="sans-serif">plane_default</text>
+    <rect x="180" y="258" width="68" height="22" rx="4" fill="#241a3a" stroke="#a371f7" stroke-width="0.5"/><text x="214" y="273" text-anchor="middle" fill="#b79aff" font-size="9.5" font-family="sans-serif">plane</text>
+    <rect x="180" y="286" width="68" height="22" rx="4" fill="#1c2128" stroke="#7d8590" stroke-width="0.4"/><text x="214" y="301" text-anchor="middle" fill="#7d8590" font-size="9.5" font-family="sans-serif">pg</text>
+    <rect x="180" y="314" width="68" height="22" rx="4" fill="#1c2128" stroke="#7d8590" stroke-width="0.4"/><text x="214" y="329" text-anchor="middle" fill="#7d8590" font-size="9.5" font-family="sans-serif">minio</text>
+    <text x="214" y="358" text-anchor="middle" fill="#484f58" font-size="9.5" font-family="sans-serif">邻居不可见</text></g>
+  <g><rect x="264" y="226" width="140" height="150" rx="8" fill="#2a2410" stroke="#d29922" stroke-width="0.7" stroke-dasharray="5 3"/><text x="334" y="246" text-anchor="middle" fill="#a98823" font-size="11" font-weight="500" font-family="sans-serif">jenkins_default</text>
+    <rect x="276" y="258" width="116" height="22" rx="4" fill="#2b2410" stroke="#d29922" stroke-width="0.5"/><text x="334" y="273" text-anchor="middle" fill="#e8b94a" font-size="10" font-family="sans-serif">jenkins</text>
+    <text x="334" y="358" text-anchor="middle" fill="#484f58" font-size="9.5" font-family="sans-serif">无内部依赖</text></g>
+  <g><rect x="412" y="226" width="84" height="150" rx="8" fill="#0f1f30" stroke="#2f81f7" stroke-width="0.7" stroke-dasharray="5 3"/><text x="454" y="246" text-anchor="middle" fill="#5a82b8" font-size="10.5" font-weight="500" font-family="sans-serif">nexus_default</text>
+    <rect x="420" y="258" width="68" height="22" rx="4" fill="#0f2236" stroke="#2f81f7" stroke-width="0.5"/><text x="454" y="273" text-anchor="middle" fill="#74a6e8" font-size="9.5" font-family="sans-serif">nexus</text>
+    <text x="454" y="358" text-anchor="middle" fill="#484f58" font-size="9.5" font-family="sans-serif">邻居不可见</text></g>
+  <g><rect x="504" y="226" width="140" height="150" rx="8" fill="#2a1530" stroke="#f778ba" stroke-width="0.7" stroke-dasharray="5 3"/><text x="574" y="246" text-anchor="middle" fill="#b85a8e" font-size="11" font-weight="500" font-family="sans-serif">ragflow_default</text>
+    <rect x="516" y="258" width="116" height="22" rx="4" fill="#2c1530" stroke="#f778ba" stroke-width="0.5"/><text x="574" y="273" text-anchor="middle" fill="#ee84b8" font-size="10" font-family="sans-serif">ragflow</text>
+    <rect x="516" y="286" width="116" height="22" rx="4" fill="#1c2128" stroke="#7d8590" stroke-width="0.4"/><text x="574" y="301" text-anchor="middle" fill="#7d8590" font-size="10" font-family="sans-serif">es + pg + redis</text>
+    <rect x="516" y="314" width="116" height="22" rx="4" fill="#1c2128" stroke="#7d8590" stroke-width="0.4"/><text x="574" y="329" text-anchor="middle" fill="#7d8590" font-size="10" font-family="sans-serif">minio</text>
+    <text x="574" y="358" text-anchor="middle" fill="#484f58" font-size="9.5" font-family="sans-serif">邻居不可见</text></g>
+  <text x="340" y="406" text-anchor="middle" fill="#7d8590" font-size="11.5" font-family="sans-serif">虚线框 = default network，每个 Compose 自动创建，仅本应用容器可见</text>
+  <text x="340" y="424" text-anchor="middle" fill="#7d8590" font-size="11.5" font-family="sans-serif">gitlab 容器同时挂 gitlab_default + devops-internal → 既能访问自己的 PG，又能被 nexus 访问</text>
+  <text x="340" y="442" text-anchor="middle" fill="#484f58" font-size="11" font-family="sans-serif">但 nexus 无法访问 gitlab 的 postgres（postgres 只在 gitlab_default）</text>
+  <!-- create command -->
+  <rect x="120" y="462" width="440" height="44" rx="6" fill="#1c2128" stroke="#30363d" stroke-width="0.6"/>
+  <text x="340" y="481" text-anchor="middle" fill="#2ee6a6" font-size="11.5" font-family="monospace">$ docker network create devops-internal</text>
+  <text x="340" y="498" text-anchor="middle" fill="#7d8590" font-size="10" font-family="sans-serif">一次性创建，写进部署脚本，所有 compose 引用为 external: true</text>
+</svg>
+  </div>
+  <p class="fig-cap">图 ③ Docker Network 架构：external 共享层 + 5 个隔离的 default 网络</p>
+</section>
+
+<!-- ============ S4 服务发现 ============ -->
+<section id="s4">
+  <div class="sec-head"><span class="sec-num">04</span><h2>服务发现：容器名 / 服务名 / alias</h2></div>
+  <p class="sec-desc">Docker 内置 DNS 在每个 user-defined network 上自动生效。关键是选对"被访问时用什么名字"，以及在哪里设。</p>
+  <table>
+    <thead><tr><th>方式</th><th>说明</th><th>跨 Compose?</th><th>推荐</th></tr></thead>
+    <tbody>
+      <tr><td>Container Name</td><td>容器名（container_name:）全局唯一</td><td class="yes">可</td><td class="mid">可用但易撞名</td></tr>
+      <tr><td>Service Name</td><td>compose 内 service 名</td><td class="no">仅同 network 内</td><td class="yes">同应用内部用</td></tr>
+      <tr><td>Network Alias</td><td>在指定 network 上加别名</td><td class="yes">可（在 devops-internal 上设）</td><td class="yes">跨服务用 ✓</td></tr>
+      <tr><td>固定 IP</td><td>手动指定</td><td class="no">—</td><td class="no">✗ 坚决不用</td></tr>
+    </tbody>
+  </table>
+  <div class="verdict">
+    <div class="vlabel">推荐</div>
+    <p><b>应用内部</b>（如 gitlab 访问自己的 pg）用 <code>service name</code>：<code>postgres</code>。<b>跨应用</b>用 <code>devops-internal</code> 上的 <code>network alias</code>：<code>gitlab</code> / <code>plane</code> / <code>jenkins</code> / <code>nexus</code> / <code>ragflow</code>。统一小写短名，Nginx 和应用配置里都写 <code>http://gitlab</code> 这种。绝不依赖容器 IP。</p>
+  </div>
+  <p>给每个对外服务在 <code>devops-internal</code> 上显式设 alias，避免依赖 service name 的跨 Compose 解析行为差异：</p>
+<pre>services:
+  gitlab:
+    networks:
+      default: {}          # 内部依赖走 default
+      devops-internal:
+        aliases:
+          - gitlab         # 跨 Compose 用这个名访问
+
+networks:
+  default: {}
+  devops-internal:
+    external: true</pre>
+  <p>这样 <code>http://gitlab</code>（来自 Nexus/Jenkins/Plane）、<code>http://postgres</code>（仅 GitLab 自己）都稳定可解析。Nginx 反代 upstream 也写 <code>http://gitlab:80</code>。</p>
+</section>
+
+<!-- ============ S5 Nginx 反代 ============ -->
+<section id="s5">
+  <div class="sec-head"><span class="sec-num">05</span><h2>Nginx 放置：宿主机 vs 容器</h2></div>
+  <p class="sec-desc">Nginx 是平台入口，与单个应用生命周期解耦。比较两种放置方式后给出推荐。</p>
+  <table>
+    <thead><tr><th>维度</th><th>宿主机 Nginx</th><th>容器内 Nginx（独立 compose）</th></tr></thead>
+    <tbody>
+      <tr><td>升级 Nginx</td><td class="yes">apt 升级，不影响任何应用</td><td class="mid">独立 compose up，需重启入口</td></tr>
+      <tr><td>证书续期</td><td class="yes">certbot --restart nginx 最简单</td><td class="mid">需 reload 容器</td></tr>
+      <tr><td>反代到容器</td><td class="yes">127.0.0.1:port 或容器名(需入网)</td><td class="yes">容器名直连(同 network)</td></tr>
+      <tr><td>宿主机端口占用</td><td class="mid">80/443 占用</td><td class="mid">80/443 映射</td></tr>
+      <tr><td>故障域</td><td class="yes">Nginx 挂不影响应用容器</td><td class="yes">同</td></tr>
+      <tr><td>统一性</td><td class="no">"宿主机也跑东西"破坏纯容器</td><td class="yes">全容器化</td></tr>
+    </tbody>
+  </table>
+  <div class="verdict">
+    <div class="vlabel">推荐</div>
+    <p><b>宿主机 Nginx</b>（当前规模首选）。理由：证书续期 + 升级链路最短、与 Docker 编排完全解耦、灾难恢复时 Nginx 装好即可恢复入口。若团队强烈要求"全容器化"，退一步用独立 <code>nginx/compose.yaml</code> 加入 <code>devops-internal</code> 并映射 80/443，也是可接受方案——但别把 Nginx 塞进某个应用的 compose。</p>
+  </div>
+  <p><b>HTTPS 证书：</b>宿主机 <code>certbot --nginx</code> 自动签发 + 续期，证书放 <code>/etc/letsencrypt</code>，cron 自动 renew。<b>WebSocket：</b>所有 location 块加 <code>proxy_http_version 1.1; proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade";</code>（GitLab/Jenkins/Plane/RagFlow 都用 WS）。<b>GitLab SSH：</b>不走 Nginx，见下节。<b>Docker Registry：</b>走 Nexus 子域名 + <code>client_max_body_size 0</code>。</p>
+  <div class="diagram-card">
+<svg viewBox="0 0 680 360" role="img">
+  <title>Nginx 反代架构</title>
+  <defs><marker id="a5" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+  <text x="340" y="24" text-anchor="middle" fill="#e6edf3" font-size="15" font-weight="500" font-family="sans-serif">Nginx 反向代理 · 域名路由到内部容器名</text>
+  <rect x="250" y="44" width="180" height="40" rx="8" fill="#1a2230" stroke="#7d8590" stroke-width="0.8"/>
+  <text x="340" y="68" text-anchor="middle" fill="#c9d1d9" font-size="12.5" font-family="sans-serif">Internet :443 / :80</text>
+  <line x1="340" y1="84" x2="340" y2="100" stroke="#7d8590" stroke-width="1.5" marker-end="url(#a5)"/>
+  <rect x="120" y="102" width="440" height="54" rx="10" fill="#0d2818" stroke="#3fb950" stroke-width="1"/>
+  <text x="340" y="124" text-anchor="middle" fill="#9FE1CB" font-size="13" font-weight="600" font-family="sans-serif">Host Nginx (TLS 终结 · certbot)</text>
+  <text x="340" y="142" text-anchor="middle" fill="#5DCAA5" font-size="11" font-family="sans-serif">proxy_pass http://&lt;容器名&gt;:port · WS 透传 · 只暴露 80/443</text>
+  <!-- 5 domain routes -->
+  <g><line x1="160" y1="156" x2="160" y2="184" stroke="#3fb950" stroke-width="1.3" marker-end="url(#a5)"/><rect x="40" y="186" width="240" height="26" rx="5" fill="#1c2128" stroke="#f85149" stroke-width="0.6"/><text x="60" y="204" fill="#f5a3a0" font-size="11" font-family="monospace">git.example.com</text><text x="270" y="204" text-anchor="end" fill="#7d8590" font-size="10.5" font-family="monospace">→ http://gitlab:80</text></g>
+  <g><line x1="520" y1="156" x2="520" y2="184" stroke="#3fb950" stroke-width="1.3" marker-end="url(#a5)"/><rect x="400" y="186" width="240" height="26" rx="5" fill="#1c2128" stroke="#a371f7" stroke-width="0.6"/><text x="420" y="204" fill="#b79aff" font-size="11" font-family="monospace">plane.example.com</text><text x="630" y="204" text-anchor="end" fill="#7d8590" font-size="10.5" font-family="monospace">→ http://plane</text></g>
+  <g><line x1="160" y1="220" x2="160" y2="246" stroke="#3fb950" stroke-width="1.3" marker-end="url(#a5)"/><rect x="40" y="248" width="240" height="26" rx="5" fill="#1c2128" stroke="#d29922" stroke-width="0.6"/><text x="60" y="266" fill="#e8b94a" font-size="11" font-family="monospace">jenkins.example.com</text><text x="270" y="266" text-anchor="end" fill="#7d8590" font-size="10.5" font-family="monospace">→ http://jenkins:8080</text></g>
+  <g><line x1="400" y1="220" x2="400" y2="246" stroke="#3fb950" stroke-width="1.3" marker-end="url(#a5)"/><rect x="280" y="248" width="240" height="26" rx="5" fill="#1c2128" stroke="#2f81f7" stroke-width="0.6"/><text x="300" y="266" fill="#74a6e8" font-size="11" font-family="monospace">nexus.example.com</text><text x="510" y="266" text-anchor="end" fill="#7d8590" font-size="10.5" font-family="monospace">→ http://nexus:8081</text></g>
+  <g><line x1="560" y1="282" x2="560" y2="306" stroke="#3fb950" stroke-width="1.3" marker-end="url(#a5)"/><rect x="440" y="308" width="200" height="26" rx="5" fill="#1c2128" stroke="#f778ba" stroke-width="0.6"/><text x="456" y="326" fill="#ee84b8" font-size="11" font-family="monospace">rag.example.com</text><text x="630" y="326" text-anchor="end" fill="#7d8590" font-size="10.5" font-family="monospace">→ http://ragflow</text></g>
+  <g><rect x="40" y="308" width="200" height="26" rx="5" fill="#1c2128" stroke="#2f81f7" stroke-width="0.6" stroke-dasharray="4 2"/><text x="56" y="326" fill="#74a6e8" font-size="11" font-family="monospace">reg.example.com</text><text x="230" y="326" text-anchor="end" fill="#7d8590" font-size="10.5" font-family="monospace">→ nexus:8082(Registry)</text></g>
+</svg>
+  </div>
+  <p class="fig-cap">图 ④ Nginx 反代：5 个应用域名 + 1 个 Registry 子域名，全部 proxy_pass 到容器名</p>
+</section>
+
+<!-- ============ S6 GitLab ============ -->
+<section id="s6">
+  <div class="sec-head"><span class="sec-num">06</span><h2>GitLab 特殊网络需求</h2></div>
+  <p class="sec-desc">GitLab 同时承载 HTTP/Webhook/Registry/SSH Git/API，是唯一需要"非 80/443 端口对外"的服务。</p>
+  <table>
+    <thead><tr><th>GitLab 流量</th><th>走 Nginx?</th><th>端口</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>Web UI / MR / API</td><td class="yes">是</td><td>443→gitlab:80</td><td>标准反代</td></tr>
+      <tr><td>Container Registry</td><td class="yes">是</td><td>443→gitlab:5000</td><td>子域名 reg.git.example.com 或 Nexus 托管</td></tr>
+      <tr><td>Webhook（入站）</td><td class="yes">是</td><td>443</td><td>外网回调经 Nginx</td></tr>
+      <tr><td>Runner（出站拉取）</td><td class="mid">内部</td><td>—</td><td>Runner 通过 devops-internal 访问 gitlab</td></tr>
+      <tr><td>SSH Git</td><td class="no">否</td><td>22 / 2222</td><td>必须直连 GitLab sshd</td></tr>
+    </tbody>
+  </table>
+  <h4 style="margin-top:20px">SSH Git 端口方案</h4>
+  <div class="grid2">
+    <div class="card">
+      <h4 style="color:var(--nginx)">方案 ①：宿主机 22 → GitLab（推荐专用机）</h4>
+      <ul><li>宿主机 SSH 改到 2222 或禁用</li><li><code>git clone git@git.example.com:group/proj.git</code> 标准体验</li><li>适合 DevOps 专用服务器</li></ul>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--nginx)">方案 ②：宿主机 2222 → GitLab 22（推荐通用）</h4>
+      <ul><li>宿主机保留 22 自用</li><li><code>~/.ssh/config</code> 设 <code>Host git.example.com / Port 2222</code></li><li>clone: <code>ssh://git@git.example.com:2222/group/proj.git</code></li><li>互不干扰，最稳</li></ul>
+    </div>
+  </div>
+  <div class="verdict">
+    <div class="vlabel">推荐</div>
+    <p><b>方案 ②</b>（宿主机 2222 → GitLab 22）。通用、零冲突、运维人员 SSH 不受影响。在 compose 里 <code>"2222:22"</code> 绑定宿主机。SSH Git 不走 Nginx（Nginx 是 HTTP 反代，无法代理 SSH 协议）。</p>
+  </div>
+</section>
+
+<!-- ============ S7 Jenkins ============ -->
+<section id="s7">
+  <div class="sec-head"><span class="sec-num">07</span><h2>Jenkins 与多架构 Build Agent</h2></div>
+  <p class="sec-desc">Controller 在 Docker，Agent 跨主机、跨 OS。关键是 Agent 通信协议选型与 Windows Agent 设计。</p>
+  <table>
+    <thead><tr><th>Agent 模式</th><th>通信方向</th><th>穿透性</th><th>Windows 适配</th><th>推荐</th></tr></thead>
+    <tbody>
+      <tr><td>SSH Agent</td><td>Controller→Agent:22</td><td class="no">需 Agent 开放端口</td><td class="mid">需装 SSH 服务</td><td>Linux 可用</td></tr>
+      <tr><td>Inbound Agent (JNLP/TCP)</td><td>Agent→Controller</td><td class="mid">Agent 主动连，但需指定端口</td><td class="yes">好</td><td>可行</td></tr>
+      <tr><td>WebSocket Agent</td><td>Agent→Controller:443(WS)</td><td class="yes">走 443，穿透最佳</td><td class="yes">好，不需 Docker</td><td class="yes">✓ 强烈推荐</td></tr>
+    </tbody>
+  </table>
+  <div class="verdict">
+    <div class="vlabel">推荐</div>
+    <p><b>Controller 在 Docker（加入 devops-internal）</b>；<b>Linux Docker Agent</b> 用独立容器 + WebSocket inbound；<b>Windows Agent 用独立 Windows Server + WebSocket inbound agent（jar）</b>，不依赖 Docker。WebSocket 走 443，Windows Server 即使在不同网络/防火墙后也能主动连回 Controller，无需开放入站端口。</p>
+  </div>
+  <div class="diagram-card">
+<svg viewBox="0 0 680 380" role="img">
+  <title>Jenkins Agent 架构</title>
+  <defs><marker id="a7" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+  <text x="340" y="24" text-anchor="middle" fill="#e6edf3" font-size="15" font-weight="500" font-family="sans-serif">Jenkins Controller → 多架构 Build Agent（WebSocket inbound）</text>
+  <!-- Controller -->
+  <rect x="260" y="50" width="160" height="60" rx="10" fill="#2b2410" stroke="#d29922" stroke-width="1"/>
+  <text x="340" y="76" text-anchor="middle" fill="#f5cd6b" font-size="13.5" font-weight="600" font-family="sans-serif">Jenkins Controller</text>
+  <text x="340" y="94" text-anchor="middle" fill="#a98823" font-size="10.5" font-family="sans-serif">Docker · devops-internal</text>
+  <text x="340" y="130" text-anchor="middle" fill="#7d8590" font-size="10.5" font-family="sans-serif">WebHook 入站经 Nginx · Agent 出站走 WebSocket(:443)</text>
+  <!-- three agents -->
+  <line x1="340" y1="140" x2="140" y2="200" stroke="#d29922" stroke-width="1.3" stroke-dasharray="5 3" marker-end="url(#a7)"/>
+  <line x1="340" y1="140" x2="340" y2="200" stroke="#d29922" stroke-width="1.3" stroke-dasharray="5 3" marker-end="url(#a7)"/>
+  <line x1="340" y1="140" x2="540" y2="200" stroke="#d29922" stroke-width="1.3" stroke-dasharray="5 3" marker-end="url(#a7)"/>
+  <text x="230" y="180" fill="#a98823" font-size="10" font-family="sans-serif">WS inbound</text>
+  <text x="340" y="180" text-anchor="middle" fill="#a98823" font-size="10" font-family="sans-serif">WS inbound</text>
+  <text x="450" y="180" fill="#a98823" font-size="10" font-family="sans-serif">WS inbound</text>
+  <g><rect x="40" y="202" width="200" height="78" rx="8" fill="#332618" stroke="#f0883e" stroke-width="0.9"/><text x="140" y="226" text-anchor="middle" fill="#f5b682" font-size="12.5" font-weight="600" font-family="sans-serif">Linux Docker Agent</text><text x="140" y="244" text-anchor="middle" fill="#c4885a" font-size="10.5" font-family="sans-serif">同 Host 容器 / 独立机</text><text x="140" y="262" text-anchor="middle" fill="#c4885a" font-size="10.5" font-family="sans-serif">挂 docker.sock 或 DinD</text><text x="140" y="276" text-anchor="middle" fill="#7d8590" font-size="9.5" font-family="sans-serif">容器化构建/镜像推送</text></g>
+  <g><rect x="240" y="202" width="200" height="78" rx="8" fill="#332618" stroke="#f0883e" stroke-width="0.9"/><text x="340" y="226" text-anchor="middle" fill="#f5b682" font-size="12.5" font-weight="600" font-family="sans-serif">Windows Agent</text><text x="340" y="244" text-anchor="middle" fill="#c4885a" font-size="10.5" font-family="sans-serif">独立 Windows Server</text><text x="340" y="262" text-anchor="middle" fill="#c4885a" font-size="10.5" font-family="sans-serif">agent.jar (JNLP/WS)</text><text x="340" y="276" text-anchor="middle" fill="#7d8590" font-size="9.5" font-family="sans-serif">无需 Docker</text></g>
+  <g><rect x="440" y="202" width="200" height="78" rx="8" fill="#332618" stroke="#f0883e" stroke-width="0.9"/><text x="540" y="226" text-anchor="middle" fill="#f5b682" font-size="12.5" font-weight="600" font-family="sans-serif">客户专用 Win Build</text><text x="540" y="244" text-anchor="middle" fill="#c4885a" font-size="10.5" font-family="sans-serif">VS / MSBuild / 签名</text><text x="540" y="262" text-anchor="middle" fill="#c4885a" font-size="10.5" font-family="sans-serif">客户特定 SDK</text><text x="540" y="276" text-anchor="middle" fill="#7d8590" font-size="9.5" font-family="sans-serif">链式委托构建</text></g>
+  <line x1="540" y1="280" x2="540" y2="306" stroke="#7d8590" stroke-width="1.3" marker-end="url(#a7)"/>
+  <rect x="420" y="308" width="240" height="44" rx="7" fill="#085041" stroke="#1d9e75" stroke-width="0.8"/>
+  <text x="540" y="326" text-anchor="middle" fill="#9FE1CB" font-size="11.5" font-family="sans-serif">Deployment Targets</text>
+  <text x="540" y="343" text-anchor="middle" fill="#5DCAA5" font-size="10" font-family="sans-serif">客户站点 / SaaS / 离线包</text>
+  <text x="140" y="330" text-anchor="middle" fill="#7d8590" font-size="10" font-family="sans-serif">→ 推 Nexus</text>
+  <text x="340" y="330" text-anchor="middle" fill="#7d8590" font-size="10" font-family="sans-serif">→ 拉 Nexus 依赖/推制品</text>
+</svg>
+  </div>
+  <p class="fig-cap">图 ⑤ Jenkins 多架构 Agent：WebSocket inbound 统一通信，Windows Agent 独立 Server</p>
+</section>
+
+<!-- ============ S8 Nexus ============ -->
+<section id="s8">
+  <div class="sec-head"><span class="sec-num">08</span><h2>Nexus 网络：依赖 + 制品双角色</h2></div>
+  <p class="sec-desc">Nexus 同时是依赖代理（Maven/npm/NuGet，供 Build Agent 拉）和制品仓库（Docker Registry，供 CI 推/部署拉）。</p>
+  <ul class="body">
+    <li><b>Web UI</b>：<code>nexus.example.com</code> → <code>http://nexus:8081</code>（Nginx 反代）</li>
+    <li><b>Docker Registry</b>：<code>reg.example.com</code> → <code>nexus:8082</code>（独立子域名，<code>client_max_body_size 0</code>，支持 <code>docker push</code>）</li>
+    <li><b>Maven/npm/NuGet</b>：开发者与 Build Agent 直接走 <code>https://nexus.example.com/repository/...</code>，由 Nexus 内部路由区分格式</li>
+    <li><b>内部访问</b>：Jenkins/Build Agent 通过 <code>devops-internal</code> 用 <code>http://nexus:8081</code> 直连，不经 Nginx，省一层 TLS</li>
+  </ul>
+  <div class="verdict">
+    <div class="vlabel">推荐</div>
+    <p>Nexus 单容器部署，blob store 挂宿主机卷。对外暴露 <b>两个子域名</b>：Web/UI/依赖走 <code>nexus.example.com</code>，Docker Registry 走 <code>reg.example.com</code>（必须独立域名，Docker client 按域名匹配 registry）。内部 CI 流量走容器名直连。</p>
+  </div>
+</section>
+
+<!-- ============ S9 RagFlow ============ -->
+<section id="s9">
+  <div class="sec-head"><span class="sec-num">09</span><h2>RagFlow：独立 Compose + 自管依赖</h2></div>
+  <p class="sec-desc">RagFlow 依赖 ES/OpenSearch、PostgreSQL、Redis、MinIO、可选 Embedding/LLM。选 B（与依赖同 Compose）。</p>
+  <p>选 A（依赖外部共享）会让 RagFlow 的 ES 版本与其他应用耦合，升级 ES 牵连一片。选 B 让 RagFlow 把它的全套依赖（官方 compose 已配好）原样带在身边，<code>docker compose pull && up -d</code> 整体升级，零外部牵连。</p>
+<pre>ragflow/
+├── compose.yaml      # ragflow + es + postgres + redis + minio
+├── .env              # LLM API Key / embedding 配置
+└── data/             # 全部卷 bind 到这里，便于备份迁移</pre>
+  <p><b>必须持久化的数据：</b>PostgreSQL（知识库元数据/用户）、MinIO（原文档/解析产物）、Elasticsearch（向量+全文索引，最重）、Redis（可重建，缓存）、RagFlow 自身配置。<b>LLM API Key</b> 走 <code>.env</code>，不入库。</p>
+</section>
+
+<!-- ============ S10 持久化 ============ -->
+<section id="s10">
+  <div class="sec-head"><span class="sec-num">10</span><h2>数据持久化设计</h2></div>
+  <p class="sec-desc">有状态服务全部用 bind mount 绑到 <code>/opt/devops/&lt;app&gt;/data/</code>，便于备份、迁移、灾难恢复（named volume 在迁移时需额外导出，bind mount 直接 tar）。下表逐应用列出必须持久化的项。</p>
+  <table>
+    <thead><tr><th>应用</th><th>必须持久化</th><th>备份级别</th></tr></thead>
+    <tbody>
+      <tr><td>GitLab</td><td>Git 仓库 / PostgreSQL / uploads / packages / LFS / Registry / config + secrets</td><td><span class="tag tag-crit">Critical</span></td></tr>
+      <tr><td>Nexus</td><td>blob store / db / config / orient（元数据）</td><td><span class="tag tag-crit">Critical</span></td></tr>
+      <tr><td>Plane</td><td>PostgreSQL / MinIO（附件） / 配置</td><td><span class="tag tag-crit">Critical</span></td></tr>
+      <tr><td>RagFlow</td><td>PostgreSQL / MinIO / ES index / 配置</td><td><span class="tag tag-crit">Critical</span></td></tr>
+      <tr><td>Jenkins</td><td>JENKINS_HOME（job/credentials/pipeline/plugin）</td><td><span class="tag tag-crit">Critical</span><span class="tag tag-rebuild" style="margin-left:4px">部分可重建</span></td></tr>
+      <tr><td>Nginx</td><td>/etc/nginx / /etc/letsencrypt</td><td><span class="tag tag-rec">配置必备份</span></td></tr>
+      <tr><td>各 .env</td><td>所有 compose 目录的 .env</td><td><span class="tag tag-crit">Critical</span>（加密）</td></tr>
+    </tbody>
+  </table>
+  <div class="diagram-card">
+<svg viewBox="0 0 680 360" role="img">
+  <title>数据持久化与备份</title>
+  <defs><marker id="a10" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+  <text x="340" y="24" text-anchor="middle" fill="#e6edf3" font-size="15" font-weight="500" font-family="sans-serif">数据持久化与分级备份架构</text>
+  <!-- app data dirs -->
+  <g><rect x="30" y="48" width="118" height="34" rx="5" fill="#2a1414" stroke="#f85149" stroke-width="0.7"/><text x="89" y="69" text-anchor="middle" fill="#f5a3a0" font-size="11" font-family="sans-serif">gitlab/data</text></g>
+  <g><rect x="158" y="48" width="118" height="34" rx="5" fill="#241a3a" stroke="#a371f7" stroke-width="0.7"/><text x="217" y="69" text-anchor="middle" fill="#b79aff" font-size="11" font-family="sans-serif">plane/data</text></g>
+  <g><rect x="286" y="48" width="118" height="34" rx="5" fill="#2b2410" stroke="#d29922" stroke-width="0.7"/><text x="345" y="69" text-anchor="middle" fill="#e8b94a" font-size="11" font-family="sans-serif">jenkins/data</text></g>
+  <g><rect x="414" y="48" width="118" height="34" rx="5" fill="#0f2236" stroke="#2f81f7" stroke-width="0.7"/><text x="473" y="69" text-anchor="middle" fill="#74a6e8" font-size="11" font-family="sans-serif">nexus/data</text></g>
+  <g><rect x="542" y="48" width="118" height="34" rx="5" fill="#2c1530" stroke="#f778ba" stroke-width="0.7"/><text x="601" y="69" text-anchor="middle" fill="#ee84b8" font-size="11" font-family="sans-serif">ragflow/data</text></g>
+  <!-- arrows to backup -->
+  <line x1="89" y1="82" x2="89" y2="118" stroke="#d85a30" stroke-width="1.2" marker-end="url(#a10)"/>
+  <line x1="217" y1="82" x2="217" y2="118" stroke="#d85a30" stroke-width="1.2" marker-end="url(#a10)"/>
+  <line x1="345" y1="82" x2="345" y2="118" stroke="#d85a30" stroke-width="1.2" marker-end="url(#a10)"/>
+  <line x1="473" y1="82" x2="473" y2="118" stroke="#d85a30" stroke-width="1.2" marker-end="url(#a10)"/>
+  <line x1="601" y1="82" x2="601" y2="118" stroke="#d85a30" stroke-width="1.2" marker-end="url(#a10)"/>
+  <!-- backup stage -->
+  <rect x="30" y="120" width="630" height="64" rx="8" fill="#2a1410" stroke="#d85a30" stroke-width="0.9"/>
+  <text x="345" y="142" text-anchor="middle" fill="#f5b682" font-size="12.5" font-weight="600" font-family="sans-serif">应用级热备份（各自脚本）</text>
+  <text x="345" y="160" text-anchor="middle" fill="#c4885a" font-size="11" font-family="sans-serif">gitlab-backup create · pg_dumpall · ES snapshot · Nexus stop-task</text>
+  <text x="345" y="176" text-anchor="middle" fill="#c4885a" font-size="11" font-family="sans-serif">→ 产出一致快照到 /opt/devops/backup/&lt;app&gt;/&lt;date&gt;/</text>
+  <line x1="345" y1="184" x2="345" y2="206" stroke="#d85a30" stroke-width="1.2" marker-end="url(#a10)"/>
+  <rect x="120" y="208" width="440" height="48" rx="8" fill="#1c2128" stroke="#7d8590" stroke-width="0.8"/>
+  <text x="340" y="228" text-anchor="middle" fill="#c9d1d9" font-size="12" font-family="sans-serif">统一打包：tar + gpg 加密 .env</text>
+  <text x="340" y="246" text-anchor="middle" fill="#7d8590" font-size="10.5" font-family="sans-serif">Daily(7) / Weekly(4) / Monthly(6) · 保留策略</text>
+  <line x1="340" y1="256" x2="340" y2="278" stroke="#7d8590" stroke-width="1.2" marker-end="url(#a10)"/>
+  <rect x="180" y="280" width="320" height="44" rx="8" fill="#085041" stroke="#1d9e75" stroke-width="0.9"/>
+  <text x="340" y="298" text-anchor="middle" fill="#9FE1CB" font-size="12" font-weight="500" font-family="sans-serif">异地存储（rsync / rclone）</text>
+  <text x="340" y="315" text-anchor="middle" fill="#5DCAA5" font-size="10.5" font-family="sans-serif">独立 NAS / 对象存储 / 异地服务器</text>
+  <text x="340" y="346" text-anchor="middle" fill="#484f58" font-size="10.5" font-family="sans-serif">Jenkins pipeline 存于 GitLab → 可重建；构建制品存于 Nexus → 也在备份内</text>
+</svg>
+  </div>
+  <p class="fig-cap">图 ⑥ 数据持久化与备份：应用级热备 → 统一加密打包 → 异地存储</p>
+</section>
+
+<!-- ============ S11 备份策略 ============ -->
+<section id="s11">
+  <div class="sec-head"><span class="sec-num">11</span><h2>备份策略</h2></div>
+  <table>
+    <thead><tr><th>策略</th><th>频率</th><th>内容</th><th>保留</th></tr></thead>
+    <tbody>
+      <tr><td>Daily</td><td>每日 02:00</td><td>全部 Critical 数据 + .env(加密) + compose + nginx 配置</td><td>7 份</td></tr>
+      <tr><td>Weekly</td><td>每周日 03:00</td><td>同 Daily（全量）</td><td>4 份</td></tr>
+      <tr><td>Monthly</td><td>每月 1 号 04:00</td><td>同 Daily（全量）</td><td>6 份</td></tr>
+    </tbody>
+  </table>
+  <div class="grid2">
+    <div class="card"><h4 style="color:var(--gitlab)">必须备份（Critical）</h4><ul><li>GitLab 全量（含 secrets）</li><li>Nexus blob store</li><li>Plane PG + MinIO</li><li>RagFlow PG + MinIO + ES</li><li>Jenkins JENKINS_HOME</li><li>所有 .env（加密）</li><li>Nginx 配置 + 证书</li></ul></div>
+    <div class="card"><h4 style="color:var(--jenkins)">可重建（Rebuildable）</h4><ul><li>Jenkins pipeline 定义（在 GitLab）</li><li>Docker 镜像（重新构建）</li><li>构建缓存</li><li>Redis 缓存数据</li><li>ES 部分索引（可重建，但耗时长，仍建议备份）</li></ul></div>
+  </div>
+  <div class="verdict">
+    <div class="vlabel">关键原则</div>
+    <p><b>热备优先于冷拷。</b>PG 用 <code>pg_dump</code>，ES 用 snapshot API，GitLab 用 <code>gitlab-backup create</code>，Nexus 用停写 + blob tar——直接 tar 活动的数据库文件有损坏风险。每个应用单独备份脚本，输出到 <code>/opt/devops/backup/&lt;app&gt;/</code>，再统一压缩加密推异地。<b>定期演练恢复</b>（每月一次），没验证过的备份等于没有。</p>
+  </div>
+</section>
+
+<!-- ============ S12 目录结构 ============ -->
+<section id="s12">
+  <div class="sec-head"><span class="sec-num">12</span><h2>推荐目录结构</h2></div>
+  <p class="sec-desc">每个应用一个目录，内含 compose + .env + data + backup。这是备份/迁移的最小单元——整个目录 tar 走，到新机器解压即恢复。</p>
+<pre>/opt/devops/
+├── network/
+│   └── setup-network.sh          # docker network create devops-internal
+├── gitlab/
+│   ├── compose.yaml
+│   ├── .env                       # 600 权限
+│   ├── data/                      # bind mount: 仓库/PG/uploads/registry
+│   ├── logs/
+│   └── backup/
+├── plane/
+│   ├── compose.yaml
+│   ├── .env
+│   ├── data/                      # PG + MinIO + Redis
+│   └── backup/
+├── jenkins/
+│   ├── compose.yaml
+│   ├── .env
+│   ├── data/                      # = JENKINS_HOME
+│   └── backup/
+├── nexus/
+│   ├── compose.yaml
+│   ├── .env
+│   ├── data/                      # blob store + db
+│   └── backup/
+├── ragflow/
+│   ├── compose.yaml
+│   ├── .env                       # 含 LLM API Key
+│   ├── data/                      # PG + ES + MinIO + Redis
+│   └── backup/
+├── nginx/
+│   ├── conf.d/                    # 各站点 .conf
+│   └── README.md                  # 证书在 /etc/letsencrypt
+├── backup/
+│   ├── backup-all.sh              # 调用各应用 backup/*.sh
+│   └── restore-all.sh
+├── dr/
+│   └── restore-from-scratch.sh    # 灾难恢复一键脚本
+└── README.md</pre>
+  <div class="verdict">
+    <div class="vlabel">评价</div>
+    <p>这个结构合理且推荐。优点：① 应用级隔离，备份/迁移粒度清晰 ② <code>data/</code> 用 bind mount，<code>tar</code> 即可整应用搬迁 ③ <code>.env</code> 与 compose 同目录，版本一致 ④ <code>backup/</code> 就近，但最终汇总到顶层 <code>backup/</code> 推异地。唯一注意：<code>data/</code> 权限要设对（部分镜像以非 root 跑，需 <code>chown</code>）。</p>
+  </div>
+</section>
+
+<!-- ============ S13 Secret ============ -->
+<section id="s13">
+  <div class="sec-head"><span class="sec-num">13</span><h2>环境变量与 Secret</h2></div>
+  <p class="sec-desc">中小规模不需要 Vault。用 <code>.env</code> 文件 + 文件权限 600 + 备份时 GPG 加密，足够安全且零运维负担。</p>
+  <ul class="body">
+    <li><b>每个 compose 目录一个 <code>.env</code></b>：DB 密码、初始管理员密码、SMTP、LLM API Key、对象存储密钥</li>
+    <li><b>权限 <code>chmod 600 .env</code></b>，属主 root，不进 git（写 <code>.gitignore</code>），只保留 <code>.env.example</code> 模板进版本控制</li>
+    <li><b>备份时 GPG 加密</b>：<code>tar ... | gpg -c &gt; backup.tar.gpg</code>，密钥单独保管</li>
+    <li><b>不入 Vault 的理由</b>：单机、单团队、内网为主——Vault 自身高可用部署比 5 个 .env 还复杂。等有多集群/多团队/动态密钥轮转需求再引入</li>
+  </ul>
+<pre># .env.example（进 git）
+POSTGRES_PASSWORD=__CHANGE_ME__
+GITLAB_ROOT_PASSWORD=__CHANGE_ME__
+LLM_API_KEY=__CHANGE_ME__
+SMTP_PASSWORD=__CHANGE_ME__
+NEXUS_ADMIN_PASSWORD=__CHANGE_ME__</pre>
+</section>
+
+<!-- ============ S14 升级 ============ -->
+<section id="s14">
+  <div class="sec-head"><span class="sec-num">14</span><h2>升级策略：单应用零牵连</h2></div>
+  <p class="sec-desc">"单应用单 Compose"的核心收益在此兑现。升级 RagFlow 不会重启 GitLab。</p>
+  <table>
+    <thead><tr><th>应用</th><th>升级步骤</th><th>影响范围</th></tr></thead>
+    <tbody>
+      <tr><td>GitLab</td><td>先 <code>gitlab-backup create</code> → 改镜像 tag → <code>compose up -d</code> → 跑内置 migrate</td><td>仅 GitLab</td></tr>
+      <tr><td>Plane</td><td><code>compose pull && up -d</code>，内置 migrate</td><td>仅 Plane</td></tr>
+      <tr><td>Jenkins</td><td>改镜像 tag → <code>up -d</code>（插件在 UI 内升级）</td><td>仅 Jenkins（Agent 不受影响）</td></tr>
+      <tr><td>Nexus</td><td><code>compose pull && up -d</code></td><td>仅 Nexus</td></tr>
+      <tr><td>RagFlow</td><td><code>compose pull && up -d</code>（含依赖一起升）</td><td>仅 RagFlow</td></tr>
+      <tr><td>Nginx</td><td><code>apt upgrade nginx</code> / <code>nginx -s reload</code></td><td>短暂入口重载</td></tr>
+    </tbody>
+  </table>
+  <div class="warn"><b>注意：</b>升级前必须备份该应用。GitLab 跨大版本（如 15→16）需按官方次序逐 minor 版本升级，不能跳级。数据库类依赖（PG）大版本升级要单独 <code>pg_dump</code> + 新版本 init + restore。</div>
+</section>
+
+<!-- ============ S15 灾难恢复 ============ -->
+<section id="s15">
+  <div class="sec-head"><span class="sec-num">15</span><h2>灾难恢复流程</h2></div>
+  <p class="sec-desc">假设宿主机整台损坏，凭异地备份在新 Linux 服务器恢复全套服务。8 步流程，目标是「装环境 → 建网络 → 恢数据 → 起服务 → 通入口 → 验证」。</p>
+  <div class="diagram-card">
+<svg viewBox="0 0 680 460" role="img">
+  <title>灾难恢复流程</title>
+  <defs><marker id="a15" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+  <text x="340" y="24" text-anchor="middle" fill="#e6edf3" font-size="15" font-weight="500" font-family="sans-serif">灾难恢复流程（整台宿主机损坏）</text>
+  <g><rect x="40" y="44" width="600" height="40" rx="7" fill="#0d2818" stroke="#3fb950" stroke-width="0.8"/><circle cx="64" cy="64" r="11" fill="#3fb950"/><text x="64" y="68" text-anchor="middle" fill="#0d1117" font-size="12" font-weight="700" font-family="sans-serif">1</text><text x="86" y="68" fill="#9FE1CB" font-size="12.5" font-family="sans-serif">新 Linux 服务器 · 装 Docker + Compose + Nginx + certbot</text></g>
+  <line x1="340" y1="84" x2="340" y2="92" stroke="#3fb950" stroke-width="1.3" marker-end="url(#a15)"/>
+  <g><rect x="40" y="94" width="600" height="40" rx="7" fill="#0e2a24" stroke="#2ee6a6" stroke-width="0.8"/><circle cx="64" cy="114" r="11" fill="#2ee6a6"/><text x="64" y="118" text-anchor="middle" fill="#0d1117" font-size="12" font-weight="700" font-family="sans-serif">2</text><text x="86" y="118" fill="#9FE1CB" font-size="12.5" font-family="sans-serif">创建 external network：<code>docker network create devops-internal</code></text></g>
+  <line x1="340" y1="134" x2="340" y2="142" stroke="#2ee6a6" stroke-width="1.3" marker-end="url(#a15)"/>
+  <g><rect x="40" y="144" width="600" height="40" rx="7" fill="#1c2128" stroke="#7d8590" stroke-width="0.8"/><circle cx="64" cy="164" r="11" fill="#7d8590"/><text x="64" y="168" text-anchor="middle" fill="#0d1117" font-size="12" font-weight="700" font-family="sans-serif">3</text><text x="86" y="168" fill="#c9d1d9" font-size="12.5" font-family="sans-serif">拉取 compose 仓库（git clone）+ GPG 解密恢复所有 .env 到各目录</text></g>
+  <line x1="340" y1="184" x2="340" y2="192" stroke="#7d8590" stroke-width="1.3" marker-end="url(#a15)"/>
+  <g><rect x="40" y="194" width="600" height="40" rx="7" fill="#2a1410" stroke="#d85a30" stroke-width="0.8"/><circle cx="64" cy="214" r="11" fill="#d85a30"/><text x="64" y="218" text-anchor="middle" fill="#0d1117" font-size="12" font-weight="700" font-family="sans-serif">4</text><text x="86" y="218" fill="#f5b682" font-size="12.5" font-family="sans-serif">从异地备份 rsync 各应用 backup 快照到 /opt/devops/&lt;app&gt;/data/</text></g>
+  <line x1="340" y1="234" x2="340" y2="242" stroke="#d85a30" stroke-width="1.3" marker-end="url(#a15)"/>
+  <g><rect x="40" y="244" width="600" height="40" rx="7" fill="#1a2230" stroke="#7d8590" stroke-width="0.8"/><circle cx="64" cy="264" r="11" fill="#7d8590"/><text x="64" y="268" text-anchor="middle" fill="#0d1117" font-size="12" font-weight="700" font-family="sans-serif">5</text><text x="86" y="268" fill="#c9d1d9" font-size="12.5" font-family="sans-serif">按依赖顺序启动 compose：nexus → gitlab → plane → ragflow → jenkins</text></g>
+  <line x1="340" y1="284" x2="340" y2="292" stroke="#7d8590" stroke-width="1.3" marker-end="url(#a15)"/>
+  <g><rect x="40" y="294" width="600" height="40" rx="7" fill="#0d2818" stroke="#3fb950" stroke-width="0.8"/><circle cx="64" cy="314" r="11" fill="#3fb950"/><text x="64" y="318" text-anchor="middle" fill="#0d1117" font-size="12" font-weight="700" font-family="sans-serif">6</text><text x="86" y="318" fill="#9FE1CB" font-size="12.5" font-family="sans-serif">恢复 Nginx 配置 + 证书 → nginx -t && systemctl reload nginx</text></g>
+  <line x1="340" y1="334" x2="340" y2="342" stroke="#3fb950" stroke-width="1.3" marker-end="url(#a15)"/>
+  <g><rect x="40" y="344" width="600" height="40" rx="7" fill="#0d2818" stroke="#3fb950" stroke-width="0.8"/><circle cx="64" cy="364" r="11" fill="#3fb950"/><text x="64" y="368" text-anchor="middle" fill="#0d1117" font-size="12" font-weight="700" font-family="sans-serif">7</text><text x="86" y="368" fill="#9FE1CB" font-size="12.5" font-family="sans-serif">DNS 切换到新 IP · 逐个域名验证（curl/登录/clone/build 冒烟）</text></g>
+  <line x1="340" y1="384" x2="340" y2="392" stroke="#3fb950" stroke-width="1.3" marker-end="url(#a15)"/>
+  <g><rect x="40" y="394" width="600" height="40" rx="7" fill="#332618" stroke="#f0883e" stroke-width="0.8"/><circle cx="64" cy="414" r="11" fill="#f0883e"/><text x="64" y="418" text-anchor="middle" fill="#0d1117" font-size="12" font-weight="700" font-family="sans-serif">8</text><text x="86" y="418" fill="#f5b682" font-size="12.5" font-family="sans-serif">恢复 Jenkins Agent：Linux Agent 重连 / Windows Agent 重启 agent.jar</text></g>
+  <text x="340" y="452" text-anchor="middle" fill="#484f58" font-size="11" font-family="sans-serif">全流程可脚本化（dr/restore-from-scratch.sh），目标 RTO ≤ 2h</text>
+</svg>
+  </div>
+  <p class="fig-cap">图 ⑦ 灾难恢复流程：8 步从空服务器恢复全套服务</p>
+</section>
+
+<!-- ============ S16 最终推荐 ============ -->
+<section id="s16">
+  <div class="sec-head"><span class="sec-num">16</span><h2>最终推荐架构</h2></div>
+  <p class="sec-desc">综合以上分析，对当前规模（单 Docker Host、中小研发团队、自建）的明确推荐。不留选择题，全部给出定论。</p>
+
+  <table>
+    <thead><tr><th>决策项</th><th>推荐方案</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr class="rec"><td>① 一个还是多个 Compose</td><td>多个——每核心应用独立 Compose，内部依赖自管</td><td>升级/备份/迁移/故障隔离全最优</td></tr>
+      <tr class="rec"><td>② 是否用 external Network</td><td>是，<code>devops-internal</code></td><td>跨 Compose DNS，不随 compose 重建</td></tr>
+      <tr class="rec"><td>③ 哪些服务共享 Network</td><td>5 个应用的"对外服务容器"（gitlab/plane/jenkins/nexus/ragflow）</td><td>只需跨服务通信的容器上网</td></tr>
+      <tr class="rec"><td>④ 哪些独立 Network</td><td>每个应用自己的 default（含 PG/Redis/ES/MinIO）</td><td>内部依赖锁死，邻居不可见</td></tr>
+      <tr class="rec"><td>⑤ Nginx 放哪</td><td>宿主机运行</td><td>证书/升级链路最短，与编排解耦</td></tr>
+      <tr class="rec"><td>⑥ 暴露哪些端口</td><td>80/443（Nginx）+ 2222（GitLab SSH）</td><td>唯一对外面，其余全内部</td></tr>
+      <tr class="rec"><td>⑦ 哪些完全内部访问</td><td>所有 Web UI、全部 PG/Redis/ES/MinIO、Docker Registry</td><td>经 Nginx 或 devops-internal</td></tr>
+      <tr class="rec"><td>⑧ 哪些必须持久化</td><td>见 §10 表，全部有状态服务 bind mount 到 data/</td><td>便于 tar 备份迁移</td></tr>
+      <tr class="rec"><td>⑨ 哪些必须备份</td><td>GitLab/Nexus/Plane/RagFlow/Jenkins Home + .env + Nginx 配置</td><td>Critical 级，分级保留</td></tr>
+      <tr class="rec"><td>⑩ 哪些可独立升级</td><td>全部——每个应用互不影响</td><td>单应用单 Compose 的直接收益</td></tr>
+    </tbody>
+  </table>
+
+  <div class="diagram-card">
+<svg viewBox="0 0 680 520" role="img">
+  <title>最终端口与网络暴露总览</title>
+  <defs><marker id="a16" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+  <text x="340" y="24" text-anchor="middle" fill="#e6edf3" font-size="15" font-weight="500" font-family="sans-serif">最终推荐：端口暴露与网络访问总览</text>
+  <!-- external zone -->
+  <rect x="20" y="40" width="640" height="70" rx="10" fill="#1a1414" stroke="#f85149" stroke-width="0.8" stroke-dasharray="5 3"/>
+  <text x="36" y="60" fill="#f85149" font-size="12" font-weight="600" font-family="sans-serif">对外暴露区（仅 3 个端口）</text>
+  <g><rect x="60" y="72" width="150" height="30" rx="6" fill="#2a1414" stroke="#f85149" stroke-width="0.7"/><text x="135" y="92" text-anchor="middle" fill="#f5a3a0" font-size="11.5" font-family="monospace">:443 / :80 → Nginx</text></g>
+  <g><rect x="265" y="72" width="150" height="30" rx="6" fill="#2a1414" stroke="#f85149" stroke-width="0.7"/><text x="340" y="92" text-anchor="middle" fill="#f5a3a0" font-size="11.5" font-family="monospace">:2222 → GitLab SSH</text></g>
+  <g><rect x="470" y="72" width="150" height="30" rx="6" fill="#1c2128" stroke="#484f58" stroke-width="0.7" stroke-dasharray="4 2"/><text x="545" y="92" text-anchor="middle" fill="#7d8590" font-size="11.5" font-family="sans-serif">其余端口一律不暴露</text></g>
+  <!-- nginx -->
+  <line x1="135" y1="110" x2="135" y2="130" stroke="#3fb950" stroke-width="1.3" marker-end="url(#a16)"/>
+  <rect x="50" y="132" width="170" height="44" rx="8" fill="#0d2818" stroke="#3fb950" stroke-width="1"/>
+  <text x="135" y="152" text-anchor="middle" fill="#9FE1CB" font-size="12.5" font-weight="600" font-family="sans-serif">Host Nginx</text>
+  <text x="135" y="168" text-anchor="middle" fill="#5DCAA5" font-size="10" font-family="sans-serif">TLS + WS + 反代</text>
+  <!-- devops-internal -->
+  <rect x="20" y="190" width="640" height="220" rx="10" fill="#0e2a24" stroke="#1d9e75" stroke-width="1"/>
+  <text x="36" y="210" fill="#2ee6a6" font-size="12.5" font-weight="600" font-family="sans-serif">devops-internal（内部通信层，无对外端口）</text>
+  <line x1="135" y1="176" x2="135" y2="190" stroke="#3fb950" stroke-width="1.3" marker-end="url(#a16)"/>
+  <text x="150" y="186" fill="#3fb950" font-size="10" font-family="sans-serif">proxy_pass 容器名</text>
+  <g><rect x="40" y="226" width="116" height="60" rx="7" fill="#2a1414" stroke="#f85149" stroke-width="0.8"/><text x="98" y="248" text-anchor="middle" fill="#f5a3a0" font-size="12" font-weight="600" font-family="sans-serif">GitLab</text><text x="98" y="266" text-anchor="middle" fill="#c97a78" font-size="9.5" font-family="sans-serif">:80 Web/Reg</text><text x="98" y="280" text-anchor="middle" fill="#c97a78" font-size="9.5" font-family="sans-serif">SSH经2222</text></g>
+  <g><rect x="168" y="226" width="116" height="60" rx="7" fill="#241a3a" stroke="#a371f7" stroke-width="0.8"/><text x="226" y="248" text-anchor="middle" fill="#b79aff" font-size="12" font-weight="600" font-family="sans-serif">Plane</text><text x="226" y="266" text-anchor="middle" fill="#8e74c7" font-size="9.5" font-family="sans-serif">:80 Web</text></g>
+  <g><rect x="296" y="226" width="116" height="60" rx="7" fill="#2b2410" stroke="#d29922" stroke-width="0.8"/><text x="354" y="248" text-anchor="middle" fill="#e8b94a" font-size="12" font-weight="600" font-family="sans-serif">Jenkins</text><text x="354" y="266" text-anchor="middle" fill="#a98823" font-size="9.5" font-family="sans-serif">:8080 Web</text><text x="354" y="280" text-anchor="middle" fill="#a98823" font-size="9.5" font-family="sans-serif">WS Agent</text></g>
+  <g><rect x="424" y="226" width="116" height="60" rx="7" fill="#0f2236" stroke="#2f81f7" stroke-width="0.8"/><text x="482" y="248" text-anchor="middle" fill="#74a6e8" font-size="12" font-weight="600" font-family="sans-serif">Nexus</text><text x="482" y="266" text-anchor="middle" fill="#5a82b8" font-size="9.5" font-family="sans-serif">:8081 UI</text><text x="482" y="280" text-anchor="middle" fill="#5a82b8" font-size="9.5" font-family="sans-serif">:8082 Reg</text></g>
+  <g><rect x="552" y="226" width="100" height="60" rx="7" fill="#2c1530" stroke="#f778ba" stroke-width="0.8"/><text x="602" y="248" text-anchor="middle" fill="#ee84b8" font-size="12" font-weight="600" font-family="sans-serif">RagFlow</text><text x="602" y="266" text-anchor="middle" fill="#b85a8e" font-size="9.5" font-family="sans-serif">:80 Web</text></g>
+  <text x="340" y="312" text-anchor="middle" fill="#5DCAA5" font-size="11" font-family="sans-serif">容器间互访用 alias：http://gitlab http://nexus http://ragflow ...</text>
+  <text x="340" y="330" text-anchor="middle" fill="#7d8590" font-size="10.5" font-family="sans-serif">所有 Web 流量经 Nginx 进入；CI 内部流量直连容器名省一层 TLS</text>
+  <text x="340" y="352" text-anchor="middle" fill="#484f58" font-size="10.5" font-family="sans-serif">内部依赖（PG/Redis/ES/MinIO）均在各自 default network，此层不可见</text>
+  <!-- agents -->
+  <rect x="20" y="424" width="640" height="80" rx="10" fill="#2a1c10" stroke="#f0883e" stroke-width="0.8"/>
+  <text x="36" y="444" fill="#f0883e" font-size="12" font-weight="600" font-family="sans-serif">构建基础设施（可跨主机）</text>
+  <g><rect x="60" y="456" width="170" height="36" rx="6" fill="#332618" stroke="#f0883e" stroke-width="0.7"/><text x="145" y="478" text-anchor="middle" fill="#f5b682" font-size="11" font-family="sans-serif">Linux Docker Agent (WS)</text></g>
+  <g><rect x="255" y="456" width="170" height="36" rx="6" fill="#332618" stroke="#f0883e" stroke-width="0.7"/><text x="340" y="478" text-anchor="middle" fill="#f5b682" font-size="11" font-family="sans-serif">Windows Server Agent (WS)</text></g>
+  <g><rect x="450" y="456" width="170" height="36" rx="6" fill="#085041" stroke="#1d9e75" stroke-width="0.7"/><text x="535" y="478" text-anchor="middle" fill="#9FE1CB" font-size="11" font-family="sans-serif">Deployment Targets</text></g>
+</svg>
+  </div>
+  <p class="fig-cap">图 ⑧ 最终端口与网络暴露总览：对外仅 80/443/2222，内部全容器名通信</p>
+
+  <div class="verdict">
+    <div class="vlabel">一句话总结</div>
+    <p><b>5 份独立 Compose + 1 个 external 网络 <code>devops-internal</code> + 各自 default 隔离内部依赖 + 宿主机 Nginx 统一 TLS 入口 + 仅暴露 80/443/2222 + bind mount 持久化 + 应用级热备 + .env(GPG) 管密钥</b>。不引入 K8s/Swarm/Vault/Consul/Service Mesh——当前规模用不上，引入只会增加运维负担。等出现"多机横向扩展 / 多团队隔离 / 动态密钥轮转"任一需求时，再按需演进。</p>
+  </div>
+
+  <h3 style="margin-top:28px">逻辑访问关系（服务间白名单）</h3>
+  <p class="sec-desc">虽然 devops-internal 上所有容器理论上互通，但实际业务访问是有向的。下方是推荐的服务间调用白名单，配置应用时按此收敛。</p>
+<pre>GitLab   → Jenkins   (Webhook 触发 CI)
+Jenkins  → GitLab    (拉代码 / 回写状态)
+Jenkins  → Nexus     (推制品 / 拉依赖)
+GitLab   → RagFlow   (文档同步知识库)
+RagFlow  → GitLab    (检索文档源)
+Plane    → GitLab    (关联仓库 / MR)
+AI Agent → Plane → GitLab → RagFlow → Jenkins  (智能体编排链)
+Nexus    → Jenkins/Build Agent  (反向：Agent 拉 Nexus)</pre>
+</section>
+
+</div>
+
+<footer>
+  Docker Compose 部署架构设计 · 自建 DevOps 平台 · 配套 deploy/ 部署骨架可直接落地 · 2026
+</footer>
+
+<script>
+  const links=document.querySelectorAll('nav a'),secs=document.querySelectorAll('section');
+  const obs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.classList.remove('active'));const a=document.querySelector('nav a[href="#'+e.target.id+'"]');if(a)a.classList.add('active')}})},{rootMargin:'-30% 0px -60% 0px'});
+  secs.forEach(s=>obs.observe(s));
+</script>
+</body>
+</html>

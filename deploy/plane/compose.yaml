@@ -1,0 +1,80 @@
+# Plane (项目管理) — 独立 Compose，内部依赖自管（PG+Redis+MinIO）
+# 端口策略：
+#   - 127.0.0.1:3000:80 → Web（仅本机，Nginx → plane.example.com）
+# 网络结构与 GitLab/RagFlow 一致：plane-web 挂 devops-internal + default
+services:
+  plane-web:
+    image: makeplane/plane-frontend:stable
+    container_name: plane-web
+    restart: unless-stopped
+    hostname: plane
+    env_file: .env
+    depends_on: [plane-api]
+    ports:
+      - "127.0.0.1:3000:80"     # Web，仅本机
+    networks:
+      default: {}
+      devops-internal:
+        aliases:
+          - plane               # 跨服务用 http://plane 访问
+
+  plane-api:
+    image: makeplane/plane-backend:stable
+    container_name: plane-api
+    restart: unless-stopped
+    env_file: .env
+    depends_on: [postgres, redis, minio]
+    volumes:
+      - ./data/logs:/tmp
+    networks:
+      default: {}
+
+  plane-worker:
+    image: makeplane/plane-backend:stable
+    container_name: plane-worker
+    restart: unless-stopped
+    command: ./bin/workspace
+    env_file: .env
+    depends_on: [postgres, redis, minio]
+    networks:
+      default: {}
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: plane-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: plane
+      POSTGRES_USER: plane
+      POSTGRES_PASSWORD: ${PGPASSWORD}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    networks:
+      default: {}
+
+  redis:
+    image: redis:7-alpine
+    container_name: plane-redis
+    restart: unless-stopped
+    volumes:
+      - ./data/redis:/data
+    networks:
+      default: {}
+
+  minio:
+    image: minio/minio:latest
+    container_name: plane-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID}
+      MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY}
+    volumes:
+      - ./data/minio:/data
+    networks:
+      default: {}
+
+networks:
+  default: {}
+  devops-internal:
+    external: true

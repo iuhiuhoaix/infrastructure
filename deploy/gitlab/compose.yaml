@@ -1,0 +1,67 @@
+# GitLab Self-Managed — 独立 Compose，内部依赖自管（PG+Redis）
+# 端口策略：
+#   - 2222:22     → GitLab SSH（对外，git clone 用）
+#   - 127.0.0.1:8080:80 → Web/Registry（仅本机，由宿主机 Nginx 反代）
+# 网络：gitlab 挂 devops-internal(跨服务) + default(内部 PG/Redis)
+# 升级：改 image tag → docker compose pull && up -d（先 gitlab-backup create）
+services:
+  gitlab:
+    image: gitlab/gitlab-ce:17.3.1-ce.0
+    container_name: gitlab
+    restart: unless-stopped
+    hostname: gitlab
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'https://git.example.com'
+        nginx['listen_port'] = 80
+        nginx['listen_https'] = false
+        nginx['proxy_set_headers'] = { "X-Forwarded-Proto" => "https", "X-Forwarded-Ssl" => "on" }
+        gitlab_rails['db_adapter'] = 'postgresql'
+        gitlab_rails['db_host'] = 'postgres'
+        gitlab_rails['db_password'] = ENV['GITLAB_DB_PASSWORD']
+        gitlab_rails['redis_host'] = 'redis'
+        gitlab_shell_ssh_port = 2222
+        # Registry 走 GitLab 内置；如改用 Nexus，注释下行
+        registry_external_url 'https://reg.git.example.com'
+        # SMTP 按需开启
+    env_file: .env
+    ports:
+      - "2222:22"               # SSH Git，对外
+      - "127.0.0.1:8080:80"     # Web/Registry，仅本机，Nginx 反代
+    volumes:
+      - ./data/config:/etc/gitlab
+      - ./data/logs:/var/log/gitlab
+      - ./data/app:/var/opt/gitlab
+    networks:
+      default: {}
+      devops-internal:
+        aliases:
+          - gitlab
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: gitlab-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gitlabhq_production
+      POSTGRES_USER: gitlab
+      POSTGRES_PASSWORD: ${GITLAB_DB_PASSWORD}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    networks:
+      default: {}               # 仅 default，邻居碰不到
+
+  redis:
+    image: redis:7-alpine
+    container_name: gitlab-redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1"]
+    volumes:
+      - ./data/redis:/data
+    networks:
+      default: {}
+
+networks:
+  default: {}
+  devops-internal:
+    external: true

@@ -1,0 +1,26 @@
+# Nexus Repository — 独立 Compose，单容器无内部依赖
+# 双角色：依赖代理(Maven/npm/NuGet) + 制品仓库(Docker Registry)
+# 端口策略：
+#   - 127.0.0.1:8082:8081 → Web UI / 依赖仓库（仅本机，Nginx → nexus.example.com）
+#   - 127.0.0.1:8083:8082 → Docker Registry（仅本机，Nginx → reg.example.com，client_max_body_size 0）
+# 内部 CI 流量（Jenkins/Agent 拉 Nexus）走 devops-internal 直连 http://nexus:8081
+services:
+  nexus:
+    image: sonatype/nexus3:3.73.0
+    container_name: nexus
+    restart: unless-stopped
+    hostname: nexus
+    env_file: .env
+    ports:
+      - "127.0.0.1:8082:8081"   # UI + 依赖仓库
+      - "127.0.0.1:8083:8082"   # Docker Registry
+    volumes:
+      - ./data:/nexus-data
+    networks:
+      devops-internal:
+        aliases:
+          - nexus
+
+networks:
+  devops-internal:
+    external: true

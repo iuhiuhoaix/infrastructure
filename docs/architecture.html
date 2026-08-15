@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>现代化研发交付平台 · 总体架构设计</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#0d1117;--surface:#161b22;--surface2:#1c2128;--border:#30363d;
+    --t1:#e6edf3;--t2:#7d8590;--t3:#484f58;
+    --plane:#a371f7;--gitlab:#f85149;--jenkins:#d29922;--nexus:#2f81f7;
+    --ragflow:#f778ba;--ai:#bc8cff;--customer:#3fb950;--deploy:#2ee6a6;
+  }
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);color:var(--t1);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    line-height:1.6;font-size:14px;
+  }
+  .wrap{max-width:1280px;margin:0 auto;padding:0 24px 80px}
+
+  /* Header */
+  header{
+    border-bottom:1px solid var(--border);
+    padding:48px 24px 32px;text-align:center;
+    background:linear-gradient(180deg,#161b22 0%,#0d1117 100%);
+  }
+  header h1{font-size:28px;font-weight:600;letter-spacing:-0.5px;margin-bottom:12px}
+  header .subtitle{color:var(--t2);font-size:14px;margin-bottom:24px;max-width:760px;margin-left:auto;margin-right:auto}
+  .flow-chain{
+    font-family:"SF Mono",Consolas,monospace;font-size:12px;color:var(--t2);
+    background:var(--surface);border:1px solid var(--border);border-radius:8px;
+    padding:10px 16px;display:inline-block;max-width:100%;overflow-x:auto;
+  }
+  .flow-chain b{color:var(--t1);font-weight:500}
+
+  /* Component tags */
+  .comp-tags{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:20px}
+  .comp-tags span{
+    font-size:11px;padding:4px 12px;border-radius:20px;
+    border:1px solid;font-weight:500;
+  }
+  .ct-plane{color:var(--plane);border-color:var(--plane)}
+  .ct-gitlab{color:var(--gitlab);border-color:var(--gitlab)}
+  .ct-jenkins{color:var(--jenkins);border-color:var(--jenkins)}
+  .ct-nexus{color:var(--nexus);border-color:var(--nexus)}
+  .ct-ragflow{color:var(--ragflow);border-color:var(--ragflow)}
+  .ct-ai{color:var(--ai);border-color:var(--ai)}
+
+  /* Sticky nav */
+  nav{
+    position:sticky;top:0;z-index:100;
+    background:rgba(13,17,23,0.92);backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--border);
+    padding:0 24px;
+  }
+  nav .nav-inner{max-width:1280px;margin:0 auto;display:flex;gap:4px;overflow-x:auto}
+  nav a{
+    color:var(--t2);text-decoration:none;font-size:13px;
+    padding:14px 18px;white-space:nowrap;border-bottom:2px solid transparent;
+    transition:color .15s,border-color .15s;
+  }
+  nav a:hover{color:var(--t1)}
+  nav a.active{color:var(--ai);border-bottom-color:var(--ai)}
+
+  /* Section */
+  section{padding:48px 0 16px;scroll-margin-top:56px}
+  .sec-head{display:flex;align-items:baseline;gap:16px;margin-bottom:8px;flex-wrap:wrap}
+  .sec-num{
+    font-size:13px;font-weight:600;color:var(--ai);
+    background:rgba(188,140,255,0.1);border:1px solid rgba(188,140,255,0.3);
+    border-radius:6px;padding:2px 10px;
+  }
+  .sec-head h2{font-size:22px;font-weight:600;letter-spacing:-0.3px}
+  .sec-desc{color:var(--t2);font-size:13px;margin-bottom:24px;max-width:880px}
+
+  /* Diagram card */
+  .diagram-card{
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:12px;padding:32px;overflow:hidden;
+  }
+  .diagram-card svg{width:100%;height:auto;display:block}
+
+  /* Responsibility matrix */
+  .matrix{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+    gap:16px;margin-top:16px;
+  }
+  .matrix-item{
+    background:var(--surface2);border:1px solid var(--border);
+    border-left:3px solid;border-radius:8px;padding:16px 20px;
+  }
+  .matrix-item h4{font-size:14px;font-weight:600;margin-bottom:4px}
+  .matrix-item .role{font-size:12px;color:var(--t2);margin-bottom:8px}
+  .matrix-item .duty{font-size:12px;color:var(--t3)}
+  .m-plane{border-left-color:var(--plane)}
+  .m-gitlab{border-left-color:var(--gitlab)}
+  .m-jenkins{border-left-color:var(--jenkins)}
+  .m-nexus{border-left-color:var(--nexus)}
+  .m-ragflow{border-left-color:var(--ragflow)}
+  .m-ai{border-left-color:var(--ai)}
+
+  /* Principles */
+  .principles{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+    gap:12px;margin-top:16px;
+  }
+  .principle{
+    background:var(--surface2);border:1px solid var(--border);
+    border-radius:8px;padding:14px 18px;font-size:13px;
+  }
+  .principle b{color:var(--t1)}
+  .principle .num{
+    display:inline-block;width:22px;height:22px;line-height:22px;
+    text-align:center;border-radius:50%;font-size:11px;font-weight:600;
+    background:rgba(188,140,255,0.15);color:var(--ai);margin-right:8px;
+  }
+
+  footer{
+    text-align:center;padding:40px 24px;color:var(--t3);font-size:12px;
+    border-top:1px solid var(--border);margin-top:48px;
+  }
+
+  @media(max-width:768px){
+    header h1{font-size:22px}
+    .diagram-card{padding:16px}
+    section{padding:32px 0 8px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>现代化研发交付平台 · 总体架构</h1>
+  <p class="subtitle">Customer → Project → Requirement → Code → Build → Artifact → Deployment → Documentation → AI Knowledge — 完整、可追踪、可自动化、AI-friendly 的研发交付闭环</p>
+  <div class="flow-chain">
+    <b>Customer</b> → <b>Project</b> → <b>Requirement</b> → <b>Task</b> → <b>Code</b> → <b>Build</b> → <b>Artifact</b> → <b>Deployment</b> → <b>Documentation</b> → <b>AI Knowledge</b> → <b>AI Automation</b>
+  </div>
+  <div class="comp-tags">
+    <span class="ct-plane">Plane</span>
+    <span class="ct-gitlab">GitLab</span>
+    <span class="ct-jenkins">Jenkins</span>
+    <span class="ct-nexus">Nexus</span>
+    <span class="ct-ragflow">RagFlow</span>
+    <span class="ct-ai">AI Agent</span>
+  </div>
+</header>
+
+<nav>
+  <div class="nav-inner">
+    <a href="#arch1" class="active">① 总体架构</a>
+    <a href="#arch2">② 组织模型</a>
+    <a href="#arch3">③ CI/CD 流程</a>
+    <a href="#arch4">④ AI 知识</a>
+    <a href="#arch5">⑤ 研发闭环</a>
+    <a href="#matrix">职责矩阵</a>
+    <a href="#principles">设计原则</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<!-- ========== Section 1 ========== -->
+<section id="arch1">
+  <div class="sec-head">
+    <span class="sec-num">01</span>
+    <h2>总体架构图</h2>
+  </div>
+  <p class="sec-desc">7 层主链路垂直贯穿：Customer → Plane → GitLab → Jenkins → Build Infrastructure → Nexus → Deployment。GitLab 右侧分出 RagFlow 知识检索分支，AI Agent 作为横向智能层（紫色虚线）贯穿所有系统。底部为职责边界矩阵与流向图例。</p>
+  <div class="diagram-card">
+<svg viewBox="0 0 680 760" width="100%" role="img">
+  <title>总体架构</title>
+  <desc>8层主链路与AI Agent横向层</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="arrowDash" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  </defs>
+  <text x="340" y="26" text-anchor="middle" fill="#e6edf3" font-size="15" font-weight="500" font-family="sans-serif">现代化研发交付平台 · 总体架构</text>
+  <text x="340" y="44" text-anchor="middle" fill="#7d8590" font-size="11.5" font-family="sans-serif">Customer → Project → Requirement → Code → Build → Artifact → Deploy → Knowledge → AI Automation</text>
+  <g><rect x="40" y="64" width="360" height="54" rx="10" fill="#27500A" stroke="#639922" stroke-width="0.75"/><text x="58" y="86" fill="#C0DD97" font-size="13" font-weight="500" font-family="sans-serif">Layer 1 · Customer / Business</text><text x="58" y="104" fill="#97C459" font-size="11.5" font-family="sans-serif">Customer · Product · Contract · Delivery</text><text x="382" y="95" text-anchor="end" fill="#639922" font-size="10.5" font-family="sans-serif">业务维度</text></g>
+  <line x1="220" y1="120" x2="220" y2="134" stroke="#7d8590" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <g><rect x="40" y="136" width="360" height="54" rx="10" fill="#3C3489" stroke="#7F77DD" stroke-width="0.75"/><text x="58" y="158" fill="#CECBF6" font-size="13" font-weight="500" font-family="sans-serif">Layer 2 · Plane</text><text x="58" y="176" fill="#AFA9EC" font-size="11.5" font-family="sans-serif">Project · Requirement · Task · Sprint · Roadmap</text><text x="382" y="167" text-anchor="end" fill="#7F77DD" font-size="10.5" font-family="sans-serif">做什么 / Why</text></g>
+  <line x1="220" y1="192" x2="220" y2="206" stroke="#7d8590" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <g><rect x="40" y="208" width="360" height="54" rx="10" fill="#712B13" stroke="#D85A30" stroke-width="0.75"/><text x="58" y="230" fill="#F5C4B3" font-size="13" font-weight="500" font-family="sans-serif">Layer 3 · GitLab</text><text x="58" y="248" fill="#F0997B" font-size="11.5" font-family="sans-serif">Repository · MR · Release · Docs · Metadata</text><text x="382" y="239" text-anchor="end" fill="#D85A30" font-size="10.5" font-family="sans-serif">Source of Truth</text></g>
+  <line x1="220" y1="264" x2="220" y2="278" stroke="#7d8590" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <g><rect x="40" y="280" width="360" height="54" rx="10" fill="#633806" stroke="#BA7517" stroke-width="0.75"/><text x="58" y="302" fill="#FAC775" font-size="13" font-weight="500" font-family="sans-serif">Layer 4 · Jenkins</text><text x="58" y="320" fill="#EF9F27" font-size="11.5" font-family="sans-serif">Pipeline · Build · Test · Package · Deploy</text><text x="382" y="311" text-anchor="end" fill="#BA7517" font-size="10.5" font-family="sans-serif">怎么执行 / How</text></g>
+  <line x1="220" y1="336" x2="220" y2="350" stroke="#7d8590" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <g><rect x="40" y="352" width="360" height="54" rx="10" fill="#444441" stroke="#888780" stroke-width="0.75"/><text x="58" y="374" fill="#D3D1C7" font-size="13" font-weight="500" font-family="sans-serif">Layer 5 · Build Infrastructure</text><text x="58" y="392" fill="#B4B2A9" font-size="11.5" font-family="sans-serif">Windows Agent · Linux Agent · Docker</text><text x="382" y="383" text-anchor="end" fill="#888780" font-size="10.5" font-family="sans-serif">构建基础设施</text></g>
+  <line x1="220" y1="408" x2="220" y2="422" stroke="#7d8590" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <g><rect x="40" y="424" width="360" height="54" rx="10" fill="#0C447C" stroke="#378ADD" stroke-width="0.75"/><text x="58" y="446" fill="#B5D4F4" font-size="13" font-weight="500" font-family="sans-serif">Layer 6 · Nexus</text><text x="58" y="464" fill="#85B7EB" font-size="11.5" font-family="sans-serif">Dependency Proxy · Artifact · Docker Registry</text><text x="382" y="455" text-anchor="end" fill="#378ADD" font-size="10.5" font-family="sans-serif">构建了什么</text></g>
+  <line x1="220" y1="480" x2="220" y2="494" stroke="#7d8590" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <g><rect x="40" y="496" width="360" height="54" rx="10" fill="#085041" stroke="#1D9E75" stroke-width="0.75"/><text x="58" y="518" fill="#9FE1CB" font-size="13" font-weight="500" font-family="sans-serif">Layer 7 · Deployment</text><text x="58" y="536" fill="#5DCAA5" font-size="11.5" font-family="sans-serif">SaaS · Customer Site · Offline Package</text><text x="382" y="527" text-anchor="end" fill="#1D9E75" font-size="10.5" font-family="sans-serif">交付到哪</text></g>
+  <line x1="400" y1="235" x2="430" y2="235" stroke="#D4537E" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <g><rect x="432" y="208" width="116" height="54" rx="10" fill="#72243E" stroke="#D4537E" stroke-width="0.75"/><text x="490" y="230" text-anchor="middle" fill="#F4C0D1" font-size="13" font-weight="500" font-family="sans-serif">RagFlow</text><text x="490" y="248" text-anchor="middle" fill="#ED93B1" font-size="11" font-family="sans-serif">Knowledge Retrieval</text></g>
+  <line x1="490" y1="264" x2="490" y2="282" stroke="#D4537E" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrowDash)"/>
+  <g><rect x="432" y="284" width="116" height="48" rx="10" fill="#4B1528" stroke="#D4537E" stroke-width="0.75" stroke-dasharray="4 3"/><text x="490" y="304" text-anchor="middle" fill="#F4C0D1" font-size="12" font-weight="500" font-family="sans-serif">Parse · Chunk</text><text x="490" y="320" text-anchor="middle" fill="#ED93B1" font-size="11" font-family="sans-serif">Embedding · Index</text></g>
+  <line x1="490" y1="332" x2="490" y2="350" stroke="#D4537E" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrowDash)"/>
+  <g><rect x="432" y="352" width="116" height="48" rx="10" fill="#4B1528" stroke="#D4537E" stroke-width="0.75" stroke-dasharray="4 3"/><text x="490" y="372" text-anchor="middle" fill="#F4C0D1" font-size="12" font-weight="500" font-family="sans-serif">Retrieval</text><text x="490" y="388" text-anchor="middle" fill="#ED93B1" font-size="11" font-family="sans-serif">AI Assistant</text></g>
+  <text x="490" y="418" text-anchor="middle" fill="#D4537E" font-size="10.5" font-family="sans-serif">GitLab docs/ 同步</text>
+  <text x="490" y="432" text-anchor="middle" fill="#D4537E" font-size="10.5" font-family="sans-serif">非原始存储</text>
+  <g><rect x="566" y="64" width="74" height="486" rx="12" fill="#1a1024" stroke="#bc8cff" stroke-width="0.75" stroke-dasharray="5 3"/><text x="603" y="90" text-anchor="middle" fill="#d2a8ff" font-size="13" font-weight="500" font-family="sans-serif">AI</text><text x="603" y="108" text-anchor="middle" fill="#d2a8ff" font-size="13" font-weight="500" font-family="sans-serif">Agent</text><line x1="586" y1="120" x2="620" y2="120" stroke="#bc8cff" stroke-width="0.5"/><text x="603" y="138" text-anchor="middle" fill="#bc8cff" font-size="10" font-family="sans-serif">横向</text><text x="603" y="152" text-anchor="middle" fill="#bc8cff" font-size="10" font-family="sans-serif">智能层</text><text x="603" y="178" text-anchor="middle" fill="#9d7bd6" font-size="9.5" font-family="sans-serif">需求分析</text><text x="603" y="194" text-anchor="middle" fill="#9d7bd6" font-size="9.5" font-family="sans-serif">代码生成</text><text x="603" y="210" text-anchor="middle" fill="#9d7bd6" font-size="9.5" font-family="sans-serif">MR 创建</text><text x="603" y="226" text-anchor="middle" fill="#9d7bd6" font-size="9.5" font-family="sans-serif">构建分析</text><text x="603" y="242" text-anchor="middle" fill="#9d7bd6" font-size="9.5" font-family="sans-serif">日志分析</text><text x="603" y="258" text-anchor="middle" fill="#9d7bd6" font-size="9.5" font-family="sans-serif">知识检索</text><text x="603" y="274" text-anchor="middle" fill="#9d7bd6" font-size="9.5" font-family="sans-serif">文档生成</text><line x1="586" y1="290" x2="620" y2="290" stroke="#bc8cff" stroke-width="0.5" stroke-dasharray="2 2"/><text x="603" y="308" text-anchor="middle" fill="#bc8cff" font-size="9.5" font-family="sans-serif">跨系统</text><text x="603" y="322" text-anchor="middle" fill="#bc8cff" font-size="9.5" font-family="sans-serif">自动化</text><text x="603" y="348" text-anchor="middle" fill="#9d7bd6" font-size="9" font-family="sans-serif">Plane</text><text x="603" y="362" text-anchor="middle" fill="#9d7bd6" font-size="9" font-family="sans-serif">GitLab</text><text x="603" y="376" text-anchor="middle" fill="#9d7bd6" font-size="9" font-family="sans-serif">Jenkins</text><text x="603" y="390" text-anchor="middle" fill="#9d7bd6" font-size="9" font-family="sans-serif">Nexus</text><text x="603" y="404" text-anchor="middle" fill="#9d7bd6" font-size="9" font-family="sans-serif">RagFlow</text><line x1="586" y1="420" x2="620" y2="420" stroke="#bc8cff" stroke-width="0.5" stroke-dasharray="2 2"/><text x="603" y="438" text-anchor="middle" fill="#bc8cff" font-size="9" font-family="sans-serif">遵循</text><text x="603" y="452" text-anchor="middle" fill="#bc8cff" font-size="9" font-family="sans-serif">用户权限</text><text x="603" y="476" text-anchor="middle" fill="#7d5ba6" font-size="8.5" font-family="sans-serif">不超越</text><text x="603" y="488" text-anchor="middle" fill="#7d5ba6" font-size="8.5" font-family="sans-serif">用户授权</text></g>
+  <line x1="566" y1="91" x2="400" y2="91" stroke="#bc8cff" stroke-width="0.5" stroke-dasharray="3 2"/>
+  <line x1="566" y1="163" x2="400" y2="163" stroke="#bc8cff" stroke-width="0.5" stroke-dasharray="3 2"/>
+  <line x1="566" y1="235" x2="400" y2="235" stroke="#bc8cff" stroke-width="0.5" stroke-dasharray="3 2"/>
+  <line x1="566" y1="307" x2="400" y2="307" stroke="#bc8cff" stroke-width="0.5" stroke-dasharray="3 2"/>
+  <line x1="566" y1="379" x2="400" y2="379" stroke="#bc8cff" stroke-width="0.5" stroke-dasharray="3 2"/>
+  <line x1="566" y1="451" x2="400" y2="451" stroke="#bc8cff" stroke-width="0.5" stroke-dasharray="3 2"/>
+  <line x1="566" y1="523" x2="400" y2="523" stroke="#bc8cff" stroke-width="0.5" stroke-dasharray="3 2"/>
+  <line x1="566" y1="330" x2="548" y2="330" stroke="#bc8cff" stroke-width="0.5" stroke-dasharray="3 2"/>
+  <rect x="40" y="568" width="600" height="172" rx="10" fill="#161b22" stroke="#30363d" stroke-width="0.5"/>
+  <text x="56" y="590" fill="#e6edf3" font-size="13" font-weight="500" font-family="sans-serif">职责边界矩阵 · Responsibility Matrix</text>
+  <line x1="56" y1="598" x2="624" y2="598" stroke="#30363d" stroke-width="0.5"/>
+  <text x="56" y="616" fill="#C0DD97" font-size="11.5" font-weight="500" font-family="sans-serif">Plane</text><text x="110" y="616" fill="#7d8590" font-size="11" font-family="sans-serif">= What / Why — Project · Requirement · Task</text><text x="340" y="616" fill="#C0DD97" font-size="11.5" font-weight="500" font-family="sans-serif">GitLab</text><text x="392" y="616" fill="#7d8590" font-size="11" font-family="sans-serif">= Code / Tech Knowledge — Repo · MR · Docs</text>
+  <text x="56" y="636" fill="#FAC775" font-size="11.5" font-weight="500" font-family="sans-serif">Jenkins</text><text x="110" y="636" fill="#7d8590" font-size="11" font-family="sans-serif">= How — Build · Test · Deploy</text><text x="340" y="636" fill="#B5D4F4" font-size="11.5" font-weight="500" font-family="sans-serif">Nexus</text><text x="392" y="636" fill="#7d8590" font-size="11" font-family="sans-serif">= What was built — Dependency · Artifact</text>
+  <text x="56" y="656" fill="#F4C0D1" font-size="11.5" font-weight="500" font-family="sans-serif">RagFlow</text><text x="110" y="656" fill="#7d8590" font-size="11" font-family="sans-serif">= What we know — Knowledge Retrieval</text><text x="340" y="656" fill="#d2a8ff" font-size="11.5" font-weight="500" font-family="sans-serif">AI Agent</text><text x="392" y="656" fill="#7d8590" font-size="11" font-family="sans-serif">= Intelligent Worker — Cross-system Auto</text>
+  <line x1="56" y1="670" x2="624" y2="670" stroke="#30363d" stroke-width="0.5"/>
+  <text x="56" y="688" fill="#e6edf3" font-size="11.5" font-weight="500" font-family="sans-serif">流向图例</text>
+  <line x1="130" y1="685" x2="160" y2="685" stroke="#7d8590" stroke-width="1.5" marker-end="url(#arrow)"/><text x="166" y="688" fill="#7d8590" font-size="10.5" font-family="sans-serif">控制流</text>
+  <line x1="230" y1="685" x2="250" y2="685" stroke="#378ADD" stroke-width="1.5" marker-end="url(#arrow)"/><text x="256" y="688" fill="#7d8590" font-size="10.5" font-family="sans-serif">依赖/制品流</text>
+  <line x1="340" y1="685" x2="360" y2="685" stroke="#D4537E" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrowDash)"/><text x="366" y="688" fill="#7d8590" font-size="10.5" font-family="sans-serif">知识流</text>
+  <line x1="430" y1="685" x2="450" y2="685" stroke="#bc8cff" stroke-width="0.75" stroke-dasharray="3 2"/><text x="456" y="688" fill="#7d8590" font-size="10.5" font-family="sans-serif">AI 横向连接</text>
+  <text x="56" y="712" fill="#7d8590" font-size="10.5" font-family="sans-serif">Git Repository = 技术知识 Source of Truth · Nexus = Artifact Source of Truth · Customer 与 Product 分离 · 通用能力经 Plugin/SDK 复用</text>
+  <text x="56" y="728" fill="#7d8590" font-size="10.5" font-family="sans-serif">Build Agent 按 Customer/Stack 选择 · Artifact/Deployment/Build Environment 全链路可追溯 · 权限源自 GitLab Group/Project</text>
+</svg>
+  </div>
+</section>
+
+<!-- ========== Section 2 ========== -->
+<section id="arch2">
+  <div class="sec-head">
+    <span class="sec-num">02</span>
+    <h2>Customer / Plane / GitLab 组织模型</h2>
+  </div>
+  <p class="sec-desc">业务维度 → 项目管理 → 代码组织的三层映射。Customer 与 Product 严格分离：客户项目通过 Configuration → Plugin → Extension → Customer Project 复用通用产品，不复制代码。底部展示 Plane ↔ GitLab 追溯链。</p>
+  <div class="diagram-card">
+<svg viewBox="0 0 680 880" width="100%" role="img">
+  <title>组织模型</title>
+  <defs><marker id="arrow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker><marker id="arrowM" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+  <text x="340" y="26" text-anchor="middle" fill="#e6edf3" font-size="15" font-weight="500" font-family="sans-serif">Customer / Plane / GitLab 组织模型</text>
+  <text x="340" y="44" text-anchor="middle" fill="#7d8590" font-size="11.5" font-family="sans-serif">业务维度 → 项目管理 → 代码组织 · Customer 与 Product 分离</text>
+  <text x="40" y="72" fill="#639922" font-size="12" font-weight="500" font-family="sans-serif">① Customer / Business</text>
+  <g><rect x="70" y="80" width="160" height="44" rx="8" fill="#27500A" stroke="#639922" stroke-width="0.75"/><text x="150" y="100" text-anchor="middle" fill="#C0DD97" font-size="13" font-weight="500" font-family="sans-serif">Customer-A</text><text x="150" y="116" text-anchor="middle" fill="#97C459" font-size="10.5" font-family="sans-serif">制造业 · MES</text></g>
+  <g><rect x="260" y="80" width="160" height="44" rx="8" fill="#27500A" stroke="#639922" stroke-width="0.75"/><text x="340" y="100" text-anchor="middle" fill="#C0DD97" font-size="13" font-weight="500" font-family="sans-serif">Customer-B</text><text x="340" y="116" text-anchor="middle" fill="#97C459" font-size="10.5" font-family="sans-serif">物联网 · IoT</text></g>
+  <g><rect x="450" y="80" width="160" height="44" rx="8" fill="#27500A" stroke="#639922" stroke-width="0.75"/><text x="530" y="100" text-anchor="middle" fill="#C0DD97" font-size="13" font-weight="500" font-family="sans-serif">Customer-C</text><text x="530" y="116" text-anchor="middle" fill="#97C459" font-size="10.5" font-family="sans-serif">零售 · ERP</text></g>
+  <line x1="150" y1="126" x2="150" y2="146" stroke="#7F77DD" stroke-width="1.5" marker-end="url(#arrow2)"/>
+  <text x="40" y="162" fill="#7F77DD" font-size="12" font-weight="500" font-family="sans-serif">② Plane · 项目管理（做什么 / Why）</text>
+  <rect x="40" y="170" width="600" height="120" rx="10" fill="#26215C" stroke="#7F77DD" stroke-width="0.5" stroke-dasharray="4 3"/>
+  <g><rect x="56" y="184" width="150" height="92" rx="8" fill="#3C3489" stroke="#7F77DD" stroke-width="0.75"/><text x="131" y="204" text-anchor="middle" fill="#CECBF6" font-size="12" font-weight="500" font-family="sans-serif">Plane Project</text><text x="131" y="220" text-anchor="middle" fill="#AFA9EC" font-size="10.5" font-family="sans-serif">Customer-A MES</text><line x1="68" y1="228" x2="194" y2="228" stroke="#534AB7" stroke-width="0.5"/><text x="131" y="244" text-anchor="middle" fill="#AFA9EC" font-size="9.5" font-family="sans-serif">Sprint · Milestone</text><text x="131" y="258" text-anchor="middle" fill="#AFA9EC" font-size="9.5" font-family="sans-serif">Roadmap · Progress</text><text x="131" y="272" text-anchor="middle" fill="#AFA9EC" font-size="9.5" font-family="sans-serif">Work Assignment</text></g>
+  <line x1="206" y1="230" x2="226" y2="230" stroke="#7F77DD" stroke-width="1.5" marker-end="url(#arrowM)"/>
+  <g><rect x="228" y="184" width="180" height="92" rx="8" fill="#3C3489" stroke="#7F77DD" stroke-width="0.75"/><text x="318" y="204" text-anchor="middle" fill="#CECBF6" font-size="12" font-weight="500" font-family="sans-serif">Requirement</text><text x="318" y="222" text-anchor="middle" fill="#AFA9EC" font-size="10.5" font-family="sans-serif">「增加特殊报工功能」</text><line x1="240" y1="230" x2="396" y2="230" stroke="#534AB7" stroke-width="0.5"/><text x="318" y="246" text-anchor="middle" fill="#AFA9EC" font-size="9.5" font-family="sans-serif">优先级 · 负责人</text><text x="318" y="260" text-anchor="middle" fill="#AFA9EC" font-size="9.5" font-family="sans-serif">验收标准 · 工期</text><text x="318" y="274" text-anchor="middle" fill="#AFA9EC" font-size="9.5" font-family="sans-serif">关联客户 · 关联产品</text></g>
+  <line x1="408" y1="230" x2="428" y2="230" stroke="#7F77DD" stroke-width="1.5" marker-end="url(#arrowM)"/>
+  <g><rect x="430" y="184" width="194" height="92" rx="8" fill="#3C3489" stroke="#7F77DD" stroke-width="0.75"/><text x="527" y="204" text-anchor="middle" fill="#CECBF6" font-size="12" font-weight="500" font-family="sans-serif">Task 拆解</text><line x1="442" y1="212" x2="612" y2="212" stroke="#534AB7" stroke-width="0.5"/><text x="448" y="228" fill="#AFA9EC" font-size="9.5" font-family="sans-serif">T-01 报工表单开发</text><text x="448" y="242" fill="#AFA9EC" font-size="9.5" font-family="sans-serif">T-02 工时计算逻辑</text><text x="448" y="256" fill="#AFA9EC" font-size="9.5" font-family="sans-serif">T-03 报表导出</text><text x="448" y="270" fill="#AFA9EC" font-size="9.5" font-family="sans-serif">T-04 数据库迁移</text></g>
+  <line x1="527" y1="276" x2="527" y2="306" stroke="#7d8590" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrowM)"/>
+  <text x="540" y="294" fill="#7d8590" font-size="10" font-family="sans-serif">Plane Task ↔ GitLab Issue</text>
+  <text x="40" y="322" fill="#D85A30" font-size="12" font-weight="500" font-family="sans-serif">③ GitLab · 代码组织（怎么实现 / Source of Truth）</text>
+  <rect x="40" y="330" width="600" height="36" rx="8" fill="#4A1B0C" stroke="#D85A30" stroke-width="0.75"/><text x="340" y="352" text-anchor="middle" fill="#F5C4B3" font-size="13" font-weight="500" font-family="sans-serif">Company · GitLab Root</text>
+  <line x1="118" y1="366" x2="118" y2="380" stroke="#D85A30" stroke-width="1" stroke-dasharray="3 2"/>
+  <line x1="278" y1="366" x2="278" y2="380" stroke="#D85A30" stroke-width="1" stroke-dasharray="3 2"/>
+  <line x1="438" y1="366" x2="438" y2="380" stroke="#D85A30" stroke-width="1" stroke-dasharray="3 2"/>
+  <line x1="568" y1="366" x2="568" y2="380" stroke="#D85A30" stroke-width="1" stroke-dasharray="3 2"/>
+  <g><rect x="44" y="382" width="148" height="186" rx="8" fill="#712B13" stroke="#D85A30" stroke-width="0.75"/><text x="118" y="402" text-anchor="middle" fill="#F5C4B3" font-size="12" font-weight="500" font-family="sans-serif">Customers</text><line x1="56" y1="410" x2="180" y2="410" stroke="#993C1D" stroke-width="0.5"/><text x="56" y="426" fill="#F0997B" font-size="10.5" font-weight="500" font-family="sans-serif">Customer-A</text><text x="66" y="440" fill="#D85A30" font-size="9.5" font-family="sans-serif">├ MES-Customization</text><text x="66" y="454" fill="#D85A30" font-size="9.5" font-family="sans-serif">├ ERP-Integration</text><text x="66" y="468" fill="#D85A30" font-size="9.5" font-family="sans-serif">└ Special-Report</text><text x="56" y="486" fill="#F0997B" font-size="10.5" font-weight="500" font-family="sans-serif">Customer-B</text><text x="66" y="500" fill="#D85A30" font-size="9.5" font-family="sans-serif">├ IoT-Gateway</text><text x="66" y="514" fill="#D85A30" font-size="9.5" font-family="sans-serif">└ Device-Mgmt</text><text x="56" y="532" fill="#F0997B" font-size="10.5" font-weight="500" font-family="sans-serif">Customer-C</text><text x="66" y="546" fill="#D85A30" font-size="9.5" font-family="sans-serif">└ Retail-Portal</text><text x="56" y="562" fill="#993C1D" font-size="9" font-style="italic" font-family="sans-serif">客户专属代码</text></g>
+  <g><rect x="204" y="382" width="148" height="186" rx="8" fill="#712B13" stroke="#D85A30" stroke-width="0.75"/><text x="278" y="402" text-anchor="middle" fill="#F5C4B3" font-size="12" font-weight="500" font-family="sans-serif">Products</text><line x1="216" y1="410" x2="340" y2="410" stroke="#993C1D" stroke-width="0.5"/><text x="216" y="426" fill="#F0997B" font-size="10.5" font-weight="500" font-family="sans-serif">MES</text><text x="226" y="440" fill="#D85A30" font-size="9.5" font-family="sans-serif">├ mes-core</text><text x="226" y="454" fill="#D85A30" font-size="9.5" font-family="sans-serif">├ mes-web</text><text x="226" y="468" fill="#D85A30" font-size="9.5" font-family="sans-serif">├ mes-api</text><text x="226" y="482" fill="#D85A30" font-size="9.5" font-family="sans-serif">└ plugins</text><text x="216" y="500" fill="#F0997B" font-size="10.5" font-weight="500" font-family="sans-serif">IoT</text><text x="226" y="514" fill="#D85A30" font-size="9.5" font-family="sans-serif">├ iot-hub</text><text x="226" y="528" fill="#D85A30" font-size="9.5" font-family="sans-serif">└ iot-rule-engine</text><text x="216" y="546" fill="#F0997B" font-size="10.5" font-weight="500" font-family="sans-serif">ERP</text><text x="226" y="560" fill="#D85A30" font-size="9.5" font-family="sans-serif">└ erp-finance</text></g>
+  <g><rect x="364" y="382" width="148" height="186" rx="8" fill="#712B13" stroke="#D85A30" stroke-width="0.75"/><text x="438" y="402" text-anchor="middle" fill="#F5C4B3" font-size="12" font-weight="500" font-family="sans-serif">Components</text><line x1="376" y1="410" x2="500" y2="410" stroke="#993C1D" stroke-width="0.5"/><text x="376" y="430" fill="#D85A30" font-size="10" font-family="sans-serif">common-utils</text><text x="376" y="448" fill="#D85A30" font-size="10" font-family="sans-serif">auth-sdk</text><text x="376" y="466" fill="#D85A30" font-size="10" font-family="sans-serif">logging</text><text x="376" y="484" fill="#D85A30" font-size="10" font-family="sans-serif">communication-sdk</text><text x="376" y="502" fill="#D85A30" font-size="10" font-family="sans-serif">database-sdk</text><line x1="376" y1="514" x2="500" y2="514" stroke="#993C1D" stroke-width="0.5"/><text x="438" y="532" text-anchor="middle" fill="#993C1D" font-size="9.5" font-style="italic" font-family="sans-serif">经 Nexus 发布</text><text x="438" y="548" text-anchor="middle" fill="#993C1D" font-size="9.5" font-style="italic" font-family="sans-serif">Dependency 引用</text><text x="438" y="564" text-anchor="middle" fill="#993C1D" font-size="9" font-family="sans-serif">不复制代码</text></g>
+  <g><rect x="524" y="382" width="112" height="186" rx="8" fill="#712B13" stroke="#D85A30" stroke-width="0.75"/><text x="580" y="402" text-anchor="middle" fill="#F5C4B3" font-size="12" font-weight="500" font-family="sans-serif">Internal</text><line x1="536" y1="410" x2="624" y2="410" stroke="#993C1D" stroke-width="0.5"/><text x="536" y="430" fill="#D85A30" font-size="10" font-family="sans-serif">DevOps</text><text x="536" y="448" fill="#D85A30" font-size="10" font-family="sans-serif">Tools</text><text x="536" y="466" fill="#D85A30" font-size="10" font-family="sans-serif">Infrastructure</text><text x="536" y="484" fill="#D85A30" font-size="10" font-family="sans-serif">CI-Templates</text><text x="536" y="502" fill="#D85A30" font-size="10" font-family="sans-serif">Dockerfiles</text><line x1="536" y1="514" x2="624" y2="514" stroke="#993C1D" stroke-width="0.5"/><text x="580" y="534" text-anchor="middle" fill="#993C1D" font-size="9.5" font-style="italic" font-family="sans-serif">内部工具链</text><text x="580" y="550" text-anchor="middle" fill="#993C1D" font-size="9.5" font-style="italic" font-family="sans-serif">基础设施</text></g>
+  <text x="40" y="596" fill="#e6edf3" font-size="12" font-weight="500" font-family="sans-serif">④ 客户项目复用通用产品 · 不复制代码</text>
+  <rect x="40" y="604" width="600" height="100" rx="10" fill="#161b22" stroke="#30363d" stroke-width="0.5"/>
+  <g><rect x="56" y="620" width="108" height="68" rx="8" fill="#085041" stroke="#1D9E75" stroke-width="0.75"/><text x="110" y="642" text-anchor="middle" fill="#9FE1CB" font-size="11.5" font-weight="500" font-family="sans-serif">Configuration</text><text x="110" y="660" text-anchor="middle" fill="#5DCAA5" font-size="9.5" font-family="sans-serif">配置差异化</text><text x="110" y="674" text-anchor="middle" fill="#5DCAA5" font-size="9.5" font-family="sans-serif">project.yaml</text></g>
+  <line x1="164" y1="654" x2="180" y2="654" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#arrowM)"/>
+  <g><rect x="182" y="620" width="108" height="68" rx="8" fill="#085041" stroke="#1D9E75" stroke-width="0.75"/><text x="236" y="642" text-anchor="middle" fill="#9FE1CB" font-size="11.5" font-weight="500" font-family="sans-serif">Plugin</text><text x="236" y="660" text-anchor="middle" fill="#5DCAA5" font-size="9.5" font-family="sans-serif">插件扩展</text><text x="236" y="674" text-anchor="middle" fill="#5DCAA5" font-size="9.5" font-family="sans-serif">mes-plugins</text></g>
+  <line x1="290" y1="654" x2="306" y2="654" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#arrowM)"/>
+  <g><rect x="308" y="620" width="108" height="68" rx="8" fill="#085041" stroke="#1D9E75" stroke-width="0.75"/><text x="362" y="642" text-anchor="middle" fill="#9FE1CB" font-size="11.5" font-weight="500" font-family="sans-serif">Extension</text><text x="362" y="660" text-anchor="middle" fill="#5DCAA5" font-size="9.5" font-family="sans-serif">扩展点</text><text x="362" y="674" text-anchor="middle" fill="#5DCAA5" font-size="9.5" font-family="sans-serif">SDK / API</text></g>
+  <line x1="416" y1="654" x2="432" y2="654" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#arrowM)"/>
+  <g><rect x="434" y="620" width="190" height="68" rx="8" fill="#27500A" stroke="#639922" stroke-width="0.75"/><text x="529" y="642" text-anchor="middle" fill="#C0DD97" font-size="11.5" font-weight="500" font-family="sans-serif">Customer Project</text><text x="529" y="660" text-anchor="middle" fill="#97C459" font-size="9.5" font-family="sans-serif">MES-Customization</text><text x="529" y="674" text-anchor="middle" fill="#97C459" font-size="9.5" font-family="sans-serif">客户专属代码</text></g>
+  <text x="56" y="730" fill="#7d8590" font-size="10.5" font-family="sans-serif">优先级：Configuration → Plugin → Extension → Customer Project</text>
+  <text x="56" y="746" fill="#7d8590" font-size="10.5" font-family="sans-serif">通用产品（Products）不复制到客户项目，通过依赖/插件/API/SDK/Event/Configuration 引用</text>
+  <rect x="40" y="762" width="600" height="104" rx="10" fill="#161b22" stroke="#30363d" stroke-width="0.5"/>
+  <text x="56" y="784" fill="#e6edf3" font-size="12" font-weight="500" font-family="sans-serif">Plane ↔ GitLab 追溯链</text>
+  <line x1="56" y1="792" x2="624" y2="792" stroke="#30363d" stroke-width="0.5"/>
+  <g font-family="sans-serif"><rect x="56" y="802" width="86" height="26" rx="6" fill="#3C3489" stroke="#7F77DD" stroke-width="0.5"/><text x="99" y="819" text-anchor="middle" fill="#CECBF6" font-size="10.5">Plane Task</text><text x="148" y="819" fill="#7d8590" font-size="11">↔</text><rect x="162" y="802" width="90" height="26" rx="6" fill="#712B13" stroke="#D85A30" stroke-width="0.5"/><text x="207" y="819" text-anchor="middle" fill="#F5C4B3" font-size="10.5">GitLab Issue</text><text x="258" y="819" fill="#7d8590" font-size="11">↔</text><rect x="272" y="802" width="90" height="26" rx="6" fill="#712B13" stroke="#D85A30" stroke-width="0.5"/><text x="317" y="819" text-anchor="middle" fill="#F5C4B3" font-size="10.5">Git Branch</text><text x="368" y="819" fill="#7d8590" font-size="11">↔</text><rect x="382" y="802" width="90" height="26" rx="6" fill="#712B13" stroke="#D85A30" stroke-width="0.5"/><text x="427" y="819" text-anchor="middle" fill="#F5C4B3" font-size="10.5">Merge Request</text><text x="478" y="819" fill="#7d8590" font-size="11">↔</text><rect x="492" y="802" width="132" height="26" rx="6" fill="#633806" stroke="#BA7517" stroke-width="0.5"/><text x="558" y="819" text-anchor="middle" fill="#FAC775" font-size="10.5">Jenkins Pipeline</text></g>
+  <text x="56" y="850" fill="#7d8590" font-size="10.5" font-family="sans-serif">需求 → 任务 → 代码实现 建立关联：Plane Work Item ↔ GitLab Issue / MR，任意 Artifact 可反查 Customer / Project / Requirement / Commit</text>
+</svg>
+  </div>
+</section>
+
+<!-- ========== Section 3 ========== -->
+<section id="arch3">
+  <div class="sec-head">
+    <span class="sec-num">03</span>
+    <h2>Jenkins + Build Agent + Nexus CI/CD 流程</h2>
+  </div>
+  <p class="sec-desc">project.yaml 驱动 Jenkins 全流程决策；8 个 Build Agent 矩阵按 Customer/Stack Label 动态调度；Nexus 双流（依赖流拉取 + 制品流推送）分离；SaaS 自动部署与客户现场离线包双路径；底部为 Artifact 全链路可追溯元数据。</p>
+  <div class="diagram-card">
+<svg viewBox="0 0 680 940" width="100%" role="img">
+  <title>CI/CD 流程</title>
+  <defs><marker id="a3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker><marker id="a3s" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+  <text x="340" y="26" text-anchor="middle" fill="#e6edf3" font-size="15" font-weight="500" font-family="sans-serif">Jenkins + Build Agent + Nexus · CI/CD 流程</text>
+  <text x="340" y="44" text-anchor="middle" fill="#7d8590" font-size="11.5" font-family="sans-serif">project.yaml 驱动 · 多客户 Agent 调度 · 依赖流与制品流分离 · 双部署路径</text>
+  <text x="40" y="72" fill="#e6edf3" font-size="12" font-weight="500" font-family="sans-serif">① 触发与编排</text>
+  <g><rect x="44" y="80" width="130" height="48" rx="8" fill="#712B13" stroke="#D85A30" stroke-width="0.75"/><text x="109" y="100" text-anchor="middle" fill="#F5C4B3" font-size="12" font-weight="500" font-family="sans-serif">GitLab</text><text x="109" y="116" text-anchor="middle" fill="#F0997B" font-size="10" font-family="sans-serif">Push / MR / Tag</text></g>
+  <line x1="174" y1="104" x2="206" y2="104" stroke="#BA7517" stroke-width="1.5" marker-end="url(#a3)"/>
+  <g><rect x="208" y="80" width="150" height="48" rx="8" fill="#633806" stroke="#BA7517" stroke-width="0.75"/><text x="283" y="100" text-anchor="middle" fill="#FAC775" font-size="12" font-weight="500" font-family="sans-serif">Jenkins Pipeline</text><text x="283" y="116" text-anchor="middle" fill="#EF9F27" font-size="10" font-family="sans-serif">CI/CD Orchestrator</text></g>
+  <line x1="358" y1="104" x2="390" y2="104" stroke="#BA7517" stroke-width="1.5" marker-end="url(#a3)"/>
+  <g><rect x="392" y="80" width="130" height="48" rx="8" fill="#633806" stroke="#BA7517" stroke-width="0.75"/><text x="457" y="100" text-anchor="middle" fill="#FAC775" font-size="12" font-weight="500" font-family="sans-serif">Read</text><text x="457" y="116" text-anchor="middle" fill="#EF9F27" font-size="10" font-family="sans-serif">project.yaml</text></g>
+  <line x1="522" y1="104" x2="546" y2="104" stroke="#BA7517" stroke-width="1.5" marker-end="url(#a3)"/>
+  <g><rect x="548" y="80" width="92" height="48" rx="8" fill="#633806" stroke="#BA7517" stroke-width="0.75"/><text x="594" y="100" text-anchor="middle" fill="#FAC775" font-size="12" font-weight="500" font-family="sans-serif">Select</text><text x="594" y="116" text-anchor="middle" fill="#EF9F27" font-size="10" font-family="sans-serif">Agent / Repo</text></g>
+  <rect x="44" y="140" width="596" height="78" rx="8" fill="#161b22" stroke="#30363d" stroke-width="0.5"/>
+  <text x="56" y="160" fill="#e6edf3" font-size="11.5" font-weight="500" font-family="sans-serif">project.yaml · 项目元数据（Jenkins 据此决策全流程）</text>
+  <line x1="56" y1="166" x2="628" y2="166" stroke="#30363d" stroke-width="0.5"/>
+  <g font-family="monospace" font-size="10"><text x="60" y="182" fill="#85B7EB">customer:</text><text x="128" y="182" fill="#97C459">customer-a</text><text x="210" y="182" fill="#85B7EB">product:</text><text x="270" y="182" fill="#97C459">mes</text><text x="300" y="182" fill="#85B7EB">project:</text><text x="360" y="182" fill="#97C459">mes-customization</text><text x="60" y="196" fill="#85B7EB">build:</text><text x="110" y="196" fill="#FAC775">{ strategy: windows, agent: customer-a }</text><text x="60" y="210" fill="#85B7EB">artifact:</text><text x="120" y="210" fill="#FAC775">{ repository: nexus, type: nuget }</text><text x="330" y="210" fill="#85B7EB">deployment:</text><text x="410" y="210" fill="#FAC775">{ type: saas, target: customer-a-prod }</text></g>
+  <text x="40" y="240" fill="#e6edf3" font-size="12" font-weight="500" font-family="sans-serif">② Build Agent 矩阵 · 按 Customer / Stack 动态选择</text>
+  <rect x="44" y="248" width="596" height="150" rx="10" fill="#2C2C2A" stroke="#888780" stroke-width="0.5" stroke-dasharray="4 3"/>
+  <g font-family="sans-serif">
+    <rect x="56" y="260" width="138" height="40" rx="6" fill="#444441" stroke="#888780" stroke-width="0.75"/><text x="125" y="278" text-anchor="middle" fill="#D3D1C7" font-size="11" font-weight="500">Win-Agent-Customer-A</text><text x="125" y="292" text-anchor="middle" fill="#B4B2A9" font-size="9.5">label: customer-a</text>
+    <rect x="204" y="260" width="138" height="40" rx="6" fill="#444441" stroke="#888780" stroke-width="0.75"/><text x="273" y="278" text-anchor="middle" fill="#D3D1C7" font-size="11" font-weight="500">Win-Agent-Customer-B</text><text x="273" y="292" text-anchor="middle" fill="#B4B2A9" font-size="9.5">label: customer-b</text>
+    <rect x="352" y="260" width="138" height="40" rx="6" fill="#444441" stroke="#888780" stroke-width="0.75"/><text x="421" y="278" text-anchor="middle" fill="#D3D1C7" font-size="11" font-weight="500">Win-Agent-Customer-C</text><text x="421" y="292" text-anchor="middle" fill="#B4B2A9" font-size="9.5">label: customer-c</text>
+    <rect x="500" y="260" width="128" height="40" rx="6" fill="#444441" stroke="#888780" stroke-width="0.75"/><text x="564" y="278" text-anchor="middle" fill="#D3D1C7" font-size="11" font-weight="500">Win-Agent-Legacy</text><text x="564" y="292" text-anchor="middle" fill="#B4B2A9" font-size="9.5">label: legacy</text>
+    <rect x="56" y="310" width="138" height="40" rx="6" fill="#444441" stroke="#888780" stroke-width="0.75"/><text x="125" y="328" text-anchor="middle" fill="#D3D1C7" font-size="11" font-weight="500">Win-Agent-DotNetFW</text><text x="125" y="342" text-anchor="middle" fill="#B4B2A9" font-size="9.5">label: dotnet-framework</text>
+    <rect x="204" y="310" width="138" height="40" rx="6" fill="#444441" stroke="#888780" stroke-width="0.75"/><text x="273" y="328" text-anchor="middle" fill="#D3D1C7" font-size="11" font-weight="500">Win-Agent-VS2022</text><text x="273" y="342" text-anchor="middle" fill="#B4B2A9" font-size="9.5">label: vs2022</text>
+    <rect x="352" y="310" width="138" height="40" rx="6" fill="#085041" stroke="#1D9E75" stroke-width="0.75"/><text x="421" y="328" text-anchor="middle" fill="#9FE1CB" font-size="11" font-weight="500">Linux-Agent</text><text x="421" y="342" text-anchor="middle" fill="#5DCAA5" font-size="9.5">label: linux</text>
+    <rect x="500" y="310" width="128" height="40" rx="6" fill="#085041" stroke="#1D9E75" stroke-width="0.75"/><text x="564" y="328" text-anchor="middle" fill="#9FE1CB" font-size="11" font-weight="500">Docker-Agent</text><text x="564" y="342" text-anchor="middle" fill="#5DCAA5" font-size="9.5">label: docker</text>
+    <text x="342" y="378" text-anchor="middle" fill="#888780" font-size="10" font-style="italic">Windows 客户专属编译环境 · Linux/Docker 现代构建 · Jenkins 按 Label 动态调度</text>
+  </g>
+  <text x="40" y="420" fill="#e6edf3" font-size="12" font-weight="500" font-family="sans-serif">③ Nexus 双流 · 依赖流（拉）+ 制品流（推）</text>
+  <g><rect x="44" y="428" width="290" height="158" rx="10" fill="#042C53" stroke="#378ADD" stroke-width="0.5" stroke-dasharray="4 3"/><text x="189" y="448" text-anchor="middle" fill="#B5D4F4" font-size="12" font-weight="500" font-family="sans-serif">依赖流 · Dependency Flow（拉取）</text><line x1="56" y1="456" x2="322" y2="456" stroke="#185FA5" stroke-width="0.5"/><rect x="56" y="466" width="120" height="36" rx="6" fill="#0C447C" stroke="#378ADD" stroke-width="0.75"/><text x="116" y="484" text-anchor="middle" fill="#B5D4F4" font-size="10.5" font-weight="500">Internet Registry</text><text x="116" y="496" text-anchor="middle" fill="#85B7EB" font-size="9">nuget / maven / npm</text><line x1="176" y1="484" x2="192" y2="484" stroke="#378ADD" stroke-width="1.5" marker-end="url(#a3s)"/><rect x="194" y="466" width="120" height="36" rx="6" fill="#0C447C" stroke="#378ADD" stroke-width="0.75"/><text x="254" y="484" text-anchor="middle" fill="#B5D4F4" font-size="10.5" font-weight="500">Nexus Proxy</text><text x="254" y="496" text-anchor="middle" fill="#85B7EB" font-size="9">代理 + Local Cache</text><line x1="116" y1="502" x2="116" y2="520" stroke="#378ADD" stroke-width="1.5" stroke-dasharray="3 2" marker-end="url(#a3s)"/><line x1="254" y1="502" x2="254" y2="520" stroke="#378ADD" stroke-width="1.5" stroke-dasharray="3 2" marker-end="url(#a3s)"/><rect x="56" y="522" width="258" height="36" rx="6" fill="#444441" stroke="#888780" stroke-width="0.75"/><text x="185" y="540" text-anchor="middle" fill="#D3D1C7" font-size="10.5" font-weight="500">Build Agent · 仅经 Nexus 拉依赖</text><text x="185" y="552" text-anchor="middle" fill="#B4B2A9" font-size="9">不直连公网仓库</text><text x="189" y="574" text-anchor="middle" fill="#378ADD" font-size="9.5" font-style="italic" font-family="sans-serif">第三方依赖统一收口 · 加速 · 可审计</text></g>
+  <g><rect x="346" y="428" width="294" height="158" rx="10" fill="#042C53" stroke="#378ADD" stroke-width="0.5" stroke-dasharray="4 3"/><text x="493" y="448" text-anchor="middle" fill="#B5D4F4" font-size="12" font-weight="500" font-family="sans-serif">制品流 · Artifact Flow（推送）</text><line x1="358" y1="456" x2="628" y2="456" stroke="#185FA5" stroke-width="0.5"/><rect x="358" y="466" width="120" height="36" rx="6" fill="#444441" stroke="#888780" stroke-width="0.75"/><text x="418" y="484" text-anchor="middle" fill="#D3D1C7" font-size="10.5" font-weight="500">Build Agent</text><text x="418" y="496" text-anchor="middle" fill="#B4B2A9" font-size="9">Build + Test + Package</text><line x1="478" y1="484" x2="494" y2="484" stroke="#378ADD" stroke-width="1.5" marker-end="url(#a3s)"/><rect x="496" y="466" width="132" height="36" rx="6" fill="#0C447C" stroke="#378ADD" stroke-width="0.75"/><text x="562" y="484" text-anchor="middle" fill="#B5D4F4" font-size="10.5" font-weight="500">Nexus Upload</text><text x="562" y="496" text-anchor="middle" fill="#85B7EB" font-size="9">Jenkins 推送</text><rect x="358" y="516" width="270" height="48" rx="6" fill="#0C447C" stroke="#378ADD" stroke-width="0.75"/><text x="493" y="534" text-anchor="middle" fill="#B5D4F4" font-size="10.5" font-weight="500">Nexus 制品仓库</text><text x="493" y="548" text-anchor="middle" fill="#85B7EB" font-size="9">Snapshot · Release · Customer Artifact · Docker Image · Deploy Package</text><text x="493" y="560" text-anchor="middle" fill="#85B7EB" font-size="9">NuGet · Maven · npm · Generic</text><text x="493" y="578" text-anchor="middle" fill="#378ADD" font-size="9.5" font-style="italic" font-family="sans-serif">Artifact Source of Truth · 全部来自 Nexus</text></g>
+  <text x="40" y="608" fill="#e6edf3" font-size="12" font-weight="500" font-family="sans-serif">④ 部署路径 · SaaS 自动 vs 客户现场离线</text>
+  <line x1="189" y1="586" x2="189" y2="618" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#a3s)"/>
+  <line x1="493" y1="586" x2="493" y2="618" stroke="#639922" stroke-width="1.5" marker-end="url(#a3s)"/>
+  <g><rect x="44" y="620" width="290" height="140" rx="10" fill="#085041" stroke="#1D9E75" stroke-width="0.5"/><text x="189" y="640" text-anchor="middle" fill="#9FE1CB" font-size="12" font-weight="500" font-family="sans-serif">SaaS 自动部署</text><line x1="56" y1="648" x2="322" y2="648" stroke="#0F6E56" stroke-width="0.5"/><text x="56" y="666" fill="#5DCAA5" font-size="10" font-family="sans-serif">Nexus Artifact → Deploy → SaaS Server</text><g font-family="sans-serif" font-size="9.5"><text x="56" y="684" fill="#9FE1CB">▪ DLL Update</text><text x="56" y="698" fill="#9FE1CB">▪ Web Deployment</text><text x="56" y="712" fill="#9FE1CB">▪ Docker Update</text><text x="180" y="684" fill="#9FE1CB">▪ Config Update</text><text x="180" y="698" fill="#9FE1CB">▪ DB Migration</text><text x="180" y="712" fill="#9FE1CB">▪ Service Restart</text></g><rect x="56" y="722" width="120" height="26" rx="5" fill="#04342C" stroke="#1D9E75" stroke-width="0.5"/><text x="116" y="739" text-anchor="middle" fill="#9FE1CB" font-size="10">Health Check</text><rect x="186" y="722" width="120" height="26" rx="5" fill="#04342C" stroke="#1D9E75" stroke-width="0.5"/><text x="246" y="739" text-anchor="middle" fill="#9FE1CB" font-size="10">Rollback 支持</text></g>
+  <g><rect x="346" y="620" width="294" height="140" rx="10" fill="#27500A" stroke="#639922" stroke-width="0.5"/><text x="493" y="640" text-anchor="middle" fill="#C0DD97" font-size="12" font-weight="500" font-family="sans-serif">客户现场离线部署</text><line x1="358" y1="648" x2="628" y2="648" stroke="#3B6D11" stroke-width="0.5"/><text x="358" y="666" fill="#97C459" font-size="10" font-family="sans-serif">Nexus Artifact → Offline Package → Customer Site</text><g font-family="sans-serif" font-size="9.5"><text x="358" y="684" fill="#C0DD97">▪ ZIP / DLL / EXE</text><text x="358" y="698" fill="#C0DD97">▪ Installer</text><text x="358" y="712" fill="#C0DD97">▪ Docker Image 导出</text><text x="478" y="684" fill="#C0DD97">▪ Upgrade Package</text><text x="478" y="698" fill="#C0DD97">▪ 配置脚本</text><text x="478" y="712" fill="#C0DD97">▪ 升级说明</text></g><rect x="358" y="722" width="268" height="26" rx="5" fill="#173404" stroke="#639922" stroke-width="0.5"/><text x="492" y="739" text-anchor="middle" fill="#C0DD97" font-size="10">所有离线包均来自 Nexus · 可追溯</text></g>
+  <rect x="44" y="778" width="596" height="142" rx="10" fill="#161b22" stroke="#30363d" stroke-width="0.5"/>
+  <text x="56" y="798" fill="#e6edf3" font-size="12" font-weight="500" font-family="sans-serif">⑤ Artifact 全链路可追溯元数据</text>
+  <line x1="56" y1="806" x2="628" y2="806" stroke="#30363d" stroke-width="0.5"/>
+  <g font-family="sans-serif" font-size="10"><rect x="56" y="816" width="108" height="28" rx="5" fill="#3C3489" stroke="#7F77DD" stroke-width="0.5"/><text x="110" y="834" text-anchor="middle" fill="#CECBF6">Customer</text><text x="170" y="834" fill="#7d8590">→</text><rect x="184" y="816" width="92" height="28" rx="5" fill="#3C3489" stroke="#7F77DD" stroke-width="0.5"/><text x="230" y="834" text-anchor="middle" fill="#CECBF6">Project</text><text x="282" y="834" fill="#7d8590">→</text><rect x="296" y="816" width="86" height="28" rx="5" fill="#3C3489" stroke="#7F77DD" stroke-width="0.5"/><text x="339" y="834" text-anchor="middle" fill="#CECBF6">Requirement</text><text x="388" y="834" fill="#7d8590">→</text><rect x="402" y="816" width="74" height="28" rx="5" fill="#3C3489" stroke="#7F77DD" stroke-width="0.5"/><text x="439" y="834" text-anchor="middle" fill="#CECBF6">Task</text><text x="482" y="834" fill="#7d8590">→</text><rect x="496" y="816" width="132" height="28" rx="5" fill="#712B13" stroke="#D85A30" stroke-width="0.5"/><text x="562" y="834" text-anchor="middle" fill="#F5C4B3">Git Commit / Tag</text></g>
+  <g font-family="sans-serif" font-size="10"><text x="56" y="862" fill="#7d8590">Git Commit</text><text x="128" y="862" fill="#7d8590">→</text><rect x="140" y="850" width="92" height="22" rx="4" fill="#633806" stroke="#BA7517" stroke-width="0.5"/><text x="186" y="865" text-anchor="middle" fill="#FAC775" font-size="9.5">Jenkins Build</text><text x="240" y="862" fill="#7d8590">→</text><rect x="252" y="850" width="100" height="22" rx="4" fill="#444441" stroke="#888780" stroke-width="0.5"/><text x="302" y="865" text-anchor="middle" fill="#D3D1C7" font-size="9.5">Build Agent + Env</text><text x="360" y="862" fill="#7d8590">→</text><rect x="372" y="850" width="96" height="22" rx="4" fill="#0C447C" stroke="#378ADD" stroke-width="0.5"/><text x="420" y="865" text-anchor="middle" fill="#B5D4F4" font-size="9.5">Dependencies</text><text x="476" y="862" fill="#7d8590">→</text><rect x="488" y="850" width="96" height="22" rx="4" fill="#0C447C" stroke="#378ADD" stroke-width="0.5"/><text x="536" y="865" text-anchor="middle" fill="#B5D4F4" font-size="9.5">Nexus Artifact</text><text x="592" y="862" fill="#7d8590">→</text><rect x="604" y="850" width="32" height="22" rx="4" fill="#085041" stroke="#1D9E75" stroke-width="0.5"/><text x="620" y="865" text-anchor="middle" fill="#9FE1CB" font-size="9.5">Runtime</text></g>
+  <text x="56" y="894" fill="#7d8590" font-size="10" font-family="sans-serif">任意生产 Artifact 可反查：客户 · 项目 · 需求 · Task · Git Commit · Jenkins Build · Build Agent · 构建环境 · 依赖 · 制品 · 部署目标</text>
+  <text x="56" y="910" fill="#7d8590" font-size="10" font-family="sans-serif">Docker Build 是 Pipeline 的 Build Strategy（非独立 CI 系统）→ Docker Image → Nexus Docker Registry → Deployment</text>
+</svg>
+  </div>
+</section>
+
+<!-- ========== Section 4 ========== -->
+<section id="arch4">
+  <div class="sec-head">
+    <span class="sec-num">04</span>
+    <h2>GitLab + RagFlow AI Knowledge 流程</h2>
+  </div>
+  <p class="sec-desc">GitLab docs/ 作为技术知识 Source of Truth，同步至 RagFlow 经 Parse → Chunk → Embedding → Index → Retrieval 形成 AI Assistant。知识按 Customer / Product / Repository 三维组织，检索权限与 GitLab Group/Project 对齐。RagFlow 是检索层，非原始存储。</p>
+  <div class="diagram-card">
+<svg viewBox="0 0 680 920" width="100%" role="img">
+  <title>AI Knowledge 流程</title>
+  <defs><marker id="a4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker><marker id="a4s" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+  <text x="340" y="26" text-anchor="middle" fill="#e6edf3" font-size="15" font-weight="500" font-family="sans-serif">GitLab + RagFlow · AI Knowledge 流程</text>
+  <text x="340" y="44" text-anchor="middle" fill="#7d8590" font-size="11.5" font-family="sans-serif">Git Repository = 技术知识 Source of Truth · RagFlow = 检索层（非原始存储）</text>
+  <text x="40" y="72" fill="#D85A30" font-size="12" font-weight="500" font-family="sans-serif">① GitLab Repository · 文档与代码同版本控制</text>
+  <g><rect x="44" y="80" width="280" height="160" rx="10" fill="#4A1B0C" stroke="#D85A30" stroke-width="0.75"/><text x="184" y="100" text-anchor="middle" fill="#F5C4B3" font-size="12" font-weight="500" font-family="sans-serif">Git Repository</text><line x1="56" y1="108" x2="312" y2="108" stroke="#993C1D" stroke-width="0.5"/><g font-family="monospace" font-size="10.5"><text x="60" y="124" fill="#F0997B">src/</text><text x="60" y="140" fill="#F5C4B3" font-weight="500">docs/</text><text x="60" y="156" fill="#F0997B">build/</text><text x="60" y="172" fill="#F0997B">deploy/</text><text x="60" y="188" fill="#F0997B">scripts/</text><line x1="60" y1="196" x2="300" y2="196" stroke="#993C1D" stroke-width="0.5"/><text x="60" y="212" fill="#F0997B">README.md</text><text x="60" y="228" fill="#F0997B">project.yaml · Jenkinsfile</text></g></g>
+  <line x1="324" y1="160" x2="344" y2="160" stroke="#D85A30" stroke-width="1.5" marker-end="url(#a4s)"/>
+  <g><rect x="346" y="80" width="294" height="160" rx="10" fill="#712B13" stroke="#D85A30" stroke-width="0.75"/><text x="493" y="100" text-anchor="middle" fill="#F5C4B3" font-size="12" font-weight="500" font-family="sans-serif">docs/ · 技术知识结构</text><line x1="358" y1="108" x2="628" y2="108" stroke="#993C1D" stroke-width="0.5"/><g font-family="monospace" font-size="10"><text x="362" y="124" fill="#F0997B">architecture/</text><text x="450" y="124" fill="#993C1D" font-size="9">架构设计</text><text x="362" y="140" fill="#F0997B">deployment/</text><text x="450" y="140" fill="#993C1D" font-size="9">部署文档</text><text x="362" y="156" fill="#F0997B">database/</text><text x="450" y="156" fill="#993C1D" font-size="9">数据库结构</text><text x="362" y="172" fill="#F0997B">api/</text><text x="450" y="172" fill="#993C1D" font-size="9">接口文档</text><text x="362" y="188" fill="#F0997B">business/</text><text x="450" y="188" fill="#993C1D" font-size="9">业务规则</text><text x="362" y="204" fill="#F0997B">troubleshooting/</text><text x="474" y="204" fill="#993C1D" font-size="9">故障排查</text><text x="362" y="220" fill="#F0997B">changelog/</text><text x="450" y="220" fill="#993C1D" font-size="9">变更记录</text><text x="362" y="234" fill="#D85A30" font-size="9" font-style="italic">Version Control · Branch · Tag · Release</text></g></g>
+  <rect x="44" y="250" width="596" height="32" rx="6" fill="#161b22" stroke="#30363d" stroke-width="0.5"/>
+  <text x="56" y="270" fill="#7d8590" font-size="10.5" font-family="sans-serif">文档格式：</text><text x="120" y="270" fill="#F5C4B3" font-size="10.5" font-weight="500" font-family="sans-serif">Markdown</text><text x="190" y="270" fill="#7d8590" font-size="10">·</text><text x="202" y="270" fill="#F5C4B3" font-size="10.5" font-weight="500" font-family="sans-serif">YAML</text><text x="246" y="270" fill="#7d8590" font-size="10">·</text><text x="258" y="270" fill="#F5C4B3" font-size="10.5" font-weight="500" font-family="sans-serif">JSON</text><text x="302" y="270" fill="#7d8590" font-size="10">·</text><text x="314" y="270" fill="#F5C4B3" font-size="10.5" font-weight="500" font-family="sans-serif">Mermaid</text><text x="376" y="270" fill="#7d8590" font-size="10">·</text><text x="388" y="270" fill="#F5C4B3" font-size="10.5" font-weight="500" font-family="sans-serif">PlantUML</text><text x="456" y="270" fill="#7d8590" font-size="10.5" font-family="sans-serif">→ 优先 AI-friendly 结构化格式</text>
+  <text x="40" y="306" fill="#D4537E" font-size="12" font-weight="500" font-family="sans-serif">② RagFlow 处理管线 · GitLab docs/ → AI 检索</text>
+  <line x1="184" y1="240" x2="184" y2="320" stroke="#D4537E" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#a4s)"/>
+  <text x="196" y="288" fill="#D4537E" font-size="10" font-family="sans-serif">Sync 同步</text>
+  <g font-family="sans-serif"><rect x="44" y="322" width="92" height="52" rx="8" fill="#712B13" stroke="#D85A30" stroke-width="0.75"/><text x="80" y="342" text-anchor="middle" fill="#F5C4B3" font-size="11" font-weight="500">GitLab</text><text x="80" y="358" text-anchor="middle" fill="#F0997B" font-size="9.5">docs/ Source</text><line x1="136" y1="348" x2="152" y2="348" stroke="#D4537E" stroke-width="1.5" marker-end="url(#a4s)"/><rect x="154" y="322" width="80" height="52" rx="8" fill="#72243E" stroke="#D4537E" stroke-width="0.75"/><text x="194" y="342" text-anchor="middle" fill="#F4C0D1" font-size="11" font-weight="500">Parse</text><text x="194" y="358" text-anchor="middle" fill="#ED93B1" font-size="9.5">文档解析</text><line x1="234" y1="348" x2="250" y2="348" stroke="#D4537E" stroke-width="1.5" marker-end="url(#a4s)"/><rect x="252" y="322" width="80" height="52" rx="8" fill="#72243E" stroke="#D4537E" stroke-width="0.75"/><text x="292" y="342" text-anchor="middle" fill="#F4C0D1" font-size="11" font-weight="500">Chunk</text><text x="292" y="358" text-anchor="middle" fill="#ED93B1" font-size="9.5">切片</text><line x1="332" y1="348" x2="348" y2="348" stroke="#D4537E" stroke-width="1.5" marker-end="url(#a4s)"/><rect x="350" y="322" width="88" height="52" rx="8" fill="#72243E" stroke="#D4537E" stroke-width="0.75"/><text x="394" y="342" text-anchor="middle" fill="#F4C0D1" font-size="11" font-weight="500">Embedding</text><text x="394" y="358" text-anchor="middle" fill="#ED93B1" font-size="9.5">向量化</text><line x1="438" y1="348" x2="454" y2="348" stroke="#D4537E" stroke-width="1.5" marker-end="url(#a4s)"/><rect x="456" y="322" width="74" height="52" rx="8" fill="#72243E" stroke="#D4537E" stroke-width="0.75"/><text x="493" y="342" text-anchor="middle" fill="#F4C0D1" font-size="11" font-weight="500">Index</text><text x="493" y="358" text-anchor="middle" fill="#ED93B1" font-size="9.5">索引</text><line x1="530" y1="348" x2="546" y2="348" stroke="#D4537E" stroke-width="1.5" marker-end="url(#a4s)"/><rect x="548" y="322" width="92" height="52" rx="8" fill="#4B1528" stroke="#D4537E" stroke-width="0.75"/><text x="594" y="342" text-anchor="middle" fill="#F4C0D1" font-size="11" font-weight="500">Retrieval</text><text x="594" y="358" text-anchor="middle" fill="#ED93B1" font-size="9.5">检索</text></g>
+  <line x1="594" y1="374" x2="594" y2="394" stroke="#D4537E" stroke-width="1.5" marker-end="url(#a4s)"/>
+  <g><rect x="44" y="396" width="596" height="44" rx="8" fill="#4B1528" stroke="#D4537E" stroke-width="0.75"/><text x="340" y="416" text-anchor="middle" fill="#F4C0D1" font-size="13" font-weight="500" font-family="sans-serif">AI Assistant · 知识问答</text><text x="340" y="432" text-anchor="middle" fill="#ED93B1" font-size="10" font-family="sans-serif">架构查询 · 部署文档 · 业务规则 · 故障方案 · API 说明 · 变更历史</text></g>
+  <text x="40" y="468" fill="#e6edf3" font-size="12" font-weight="500" font-family="sans-serif">③ RagFlow 知识组织 · 多维度检索</text>
+  <g><rect x="44" y="476" width="194" height="180" rx="10" fill="#72243E" stroke="#D4537E" stroke-width="0.5"/><text x="141" y="496" text-anchor="middle" fill="#F4C0D1" font-size="12" font-weight="500" font-family="sans-serif">按 Customer 维度</text><line x1="56" y1="504" x2="226" y2="504" stroke="#993556" stroke-width="0.5"/><g font-family="sans-serif" font-size="10"><text x="56" y="522" fill="#ED93B1" font-weight="500">Customer-A</text><text x="70" y="536" fill="#D4537E">├ Project-A1</text><text x="70" y="550" fill="#D4537E">├ Project-A2</text><text x="70" y="564" fill="#D4537E">└ Project-A3</text><text x="56" y="582" fill="#ED93B1" font-weight="500">Customer-B</text><text x="70" y="596" fill="#D4537E">├ Project-B1</text><text x="70" y="610" fill="#D4537E">└ Project-B2</text><text x="56" y="628" fill="#ED93B1" font-weight="500">Customer-C</text><text x="70" y="642" fill="#D4537E">└ Project-C1</text></g><text x="141" y="652" text-anchor="middle" fill="#993556" font-size="9" font-style="italic">客户历史项目检索</text></g>
+  <g><rect x="246" y="476" width="194" height="180" rx="10" fill="#72243E" stroke="#D4537E" stroke-width="0.5"/><text x="343" y="496" text-anchor="middle" fill="#F4C0D1" font-size="12" font-weight="500" font-family="sans-serif">按 Product 维度</text><line x1="258" y1="504" x2="428" y2="504" stroke="#993556" stroke-width="0.5"/><g font-family="sans-serif" font-size="10"><text x="258" y="522" fill="#ED93B1" font-weight="500">Product-MES</text><text x="272" y="536" fill="#D4537E">├ mes-core</text><text x="272" y="550" fill="#D4537E">├ mes-web</text><text x="272" y="564" fill="#D4537E">└ mes-plugin</text><text x="258" y="582" fill="#ED93B1" font-weight="500">Product-IoT</text><text x="272" y="596" fill="#D4537E">├ iot-hub</text><text x="272" y="610" fill="#D4537E">└ iot-rule-engine</text><text x="258" y="628" fill="#ED93B1" font-weight="500">Product-ERP</text><text x="272" y="642" fill="#D4537E">└ erp-finance</text></g><text x="343" y="652" text-anchor="middle" fill="#993556" font-size="9" font-style="italic">产品知识检索</text></g>
+  <g><rect x="448" y="476" width="192" height="180" rx="10" fill="#72243E" stroke="#D4537E" stroke-width="0.5"/><text x="544" y="496" text-anchor="middle" fill="#F4C0D1" font-size="12" font-weight="500" font-family="sans-serif">按 Repository 维度</text><line x1="460" y1="504" x2="628" y2="504" stroke="#993556" stroke-width="0.5"/><g font-family="sans-serif" font-size="10"><text x="460" y="522" fill="#ED93B1" font-weight="500">单仓库检索</text><text x="474" y="536" fill="#D4537E">mes-customization</text><text x="460" y="558" fill="#ED93B1" font-weight="500">跨仓库检索</text><text x="474" y="572" fill="#D4537E">Customer-A 全部</text><text x="474" y="586" fill="#D4537E">MES 全部仓库</text><text x="460" y="608" fill="#ED93B1" font-weight="500">全局检索</text><text x="474" y="622" fill="#D4537E">跨 Customer + Product</text></g><text x="544" y="652" text-anchor="middle" fill="#993556" font-size="9" font-style="italic">灵活检索范围</text></g>
+  <rect x="44" y="672" width="596" height="98" rx="10" fill="#161b22" stroke="#30363d" stroke-width="0.5"/>
+  <text x="56" y="692" fill="#e6edf3" font-size="12" font-weight="500" font-family="sans-serif">④ 权限对齐 · RagFlow 检索权限 = GitLab Group/Project 权限</text>
+  <line x1="56" y1="700" x2="628" y2="700" stroke="#30363d" stroke-width="0.5"/>
+  <g font-family="sans-serif" font-size="10"><rect x="56" y="710" width="110" height="24" rx="5" fill="#712B13" stroke="#D85A30" stroke-width="0.5"/><text x="111" y="726" text-anchor="middle" fill="#F5C4B3">GitLab Group/Project</text><text x="172" y="726" fill="#7d8590">权限源 →</text><rect x="232" y="710" width="100" height="24" rx="5" fill="#72243E" stroke="#D4537E" stroke-width="0.5"/><text x="282" y="726" text-anchor="middle" fill="#F4C0D1">RagFlow 知识访问</text><text x="338" y="726" fill="#7d8590">→ 同步权限映射</text><rect x="440" y="710" width="100" height="24" rx="5" fill="#1a1024" stroke="#bc8cff" stroke-width="0.5" stroke-dasharray="3 2"/><text x="490" y="726" text-anchor="middle" fill="#d2a8ff">AI Agent 检索</text><text x="546" y="726" fill="#7d8590">→ 受用户授权约束</text></g>
+  <text x="56" y="754" fill="#7d8590" font-size="10" font-family="sans-serif">Developer / Maintainer / Reporter / Customer Access → RagFlow 仅返回当前用户有权访问的 GitLab Project 对应的知识 chunk</text>
+  <rect x="44" y="784" width="596" height="120" rx="10" fill="#161b22" stroke="#30363d" stroke-width="0.5"/>
+  <text x="56" y="804" fill="#e6edf3" font-size="12" font-weight="500" font-family="sans-serif">⑤ 核心原则</text>
+  <line x1="56" y1="812" x2="628" y2="812" stroke="#30363d" stroke-width="0.5"/>
+  <g font-family="sans-serif"><rect x="56" y="822" width="276" height="30" rx="6" fill="#4A1B0C" stroke="#D85A30" stroke-width="0.5"/><text x="64" y="841" fill="#F5C4B3" font-size="10.5" font-weight="500">GitLab</text><text x="110" y="841" fill="#7d8590" font-size="10.5">= 技术知识 Source of Truth（原始存储）</text><rect x="56" y="858" width="276" height="30" rx="6" fill="#4B1528" stroke="#D4537E" stroke-width="0.5"/><text x="64" y="877" fill="#F4C0D1" font-size="10.5" font-weight="500">RagFlow</text><text x="116" y="877" fill="#7d8590" font-size="10.5">= 检索层（非原始文档存储）</text><rect x="344" y="822" width="284" height="30" rx="6" fill="#085041" stroke="#1D9E75" stroke-width="0.5"/><text x="352" y="841" fill="#9FE1CB" font-size="10.5" font-weight="500">文档与代码</text><text x="420" y="841" fill="#7d8590" font-size="10.5">同 Version Control / Branch / Tag / Release</text><rect x="344" y="858" width="284" height="30" rx="6" fill="#1a1024" stroke="#bc8cff" stroke-width="0.5" stroke-dasharray="3 2"/><text x="352" y="877" fill="#d2a8ff" font-size="10.5" font-weight="500">AI Agent</text><text x="404" y="877" fill="#7d8590" font-size="10.5">经 RagFlow 检索 · 不绕过权限 · 不直读原始库</text></g>
+</svg>
+  </div>
+</section>
+
+<!-- ========== Section 5 ========== -->
+<section id="arch5">
+  <div class="sec-head">
+    <span class="sec-num">05</span>
+    <h2>AI Agent 驱动的软件研发闭环</h2>
+  </div>
+  <p class="sec-desc">Requirement → Planning → Coding → Build → Deploy → Feedback 六步闭环，AI Agent 紫色虚线外框包裹全程，右侧弯曲箭头从 Feedback 回到 Requirement。底部为四类能力矩阵与权限约束——AI Agent 不超越用户授权。</p>
+  <div class="diagram-card">
+<svg viewBox="0 0 680 920" width="100%" role="img">
+  <title>AI Agent 研发闭环</title>
+  <defs><marker id="a5" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker><marker id="a5r" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#bc8cff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+  <text x="340" y="26" text-anchor="middle" fill="#e6edf3" font-size="15" font-weight="500" font-family="sans-serif">AI Agent 驱动的软件研发闭环</text>
+  <text x="340" y="44" text-anchor="middle" fill="#7d8590" font-size="11.5" font-family="sans-serif">Requirement → Planning → Coding → Build → Deploy → Feedback → 闭环</text>
+  <rect x="32" y="58" width="616" height="396" rx="16" fill="#1a1024" stroke="#bc8cff" stroke-width="0.75" stroke-dasharray="6 4"/>
+  <text x="48" y="78" fill="#d2a8ff" font-size="11.5" font-weight="500" font-family="sans-serif">AI Agent · 横向智能层</text>
+  <text x="632" y="78" text-anchor="end" fill="#bc8cff" font-size="10" font-family="sans-serif">跨系统自动化 · 遵循用户权限</text>
+  <g><rect x="48" y="92" width="184" height="130" rx="10" fill="#3C3489" stroke="#7F77DD" stroke-width="0.75"/><text x="60" y="112" fill="#CECBF6" font-size="11" font-family="sans-serif">① Requirement</text><text x="60" y="128" fill="#AFA9EC" font-size="10" font-family="sans-serif">Plane · 需求</text><line x1="60" y1="136" x2="220" y2="136" stroke="#534AB7" stroke-width="0.5"/><text x="60" y="152" fill="#d2a8ff" font-size="9.5" font-weight="500" font-family="sans-serif">AI Agent:</text><text x="64" y="166" fill="#AFA9EC" font-size="9.5" font-family="sans-serif">▪ 分析需求</text><text x="64" y="180" fill="#AFA9EC" font-size="9.5" font-family="sans-serif">▪ 拆解任务</text><text x="64" y="194" fill="#AFA9EC" font-size="9.5" font-family="sans-serif">▪ 创建 Issue</text><text x="64" y="208" fill="#AFA9EC" font-size="9.5" font-family="sans-serif">▪ 生成 Sprint</text></g>
+  <line x1="232" y1="157" x2="248" y2="157" stroke="#7d8590" stroke-width="1.5" marker-end="url(#a5)"/>
+  <g><rect x="250" y="92" width="184" height="130" rx="10" fill="#72243E" stroke="#D4537E" stroke-width="0.75"/><text x="262" y="112" fill="#F4C0D1" font-size="11" font-family="sans-serif">② Planning</text><text x="262" y="128" fill="#ED93B1" font-size="10" font-family="sans-serif">RagFlow + GitLab</text><line x1="262" y1="136" x2="422" y2="136" stroke="#993556" stroke-width="0.5"/><text x="262" y="152" fill="#d2a8ff" font-size="9.5" font-weight="500" font-family="sans-serif">AI Agent:</text><text x="266" y="166" fill="#ED93B1" font-size="9.5" font-family="sans-serif">▪ 知识检索</text><text x="266" y="180" fill="#ED93B1" font-size="9.5" font-family="sans-serif">▪ 架构分析</text><text x="266" y="194" fill="#ED93B1" font-size="9.5" font-family="sans-serif">▪ 代码搜索</text><text x="266" y="208" fill="#ED93B1" font-size="9.5" font-family="sans-serif">▪ 技术方案</text></g>
+  <line x1="434" y1="157" x2="450" y2="157" stroke="#7d8590" stroke-width="1.5" marker-end="url(#a5)"/>
+  <g><rect x="452" y="92" width="180" height="130" rx="10" fill="#712B13" stroke="#D85A30" stroke-width="0.75"/><text x="464" y="112" fill="#F5C4B3" font-size="11" font-family="sans-serif">③ Coding</text><text x="464" y="128" fill="#F0997B" font-size="10" font-family="sans-serif">GitLab · 代码</text><line x1="464" y1="136" x2="620" y2="136" stroke="#993C1D" stroke-width="0.5"/><text x="464" y="152" fill="#d2a8ff" font-size="9.5" font-weight="500" font-family="sans-serif">AI Agent:</text><text x="468" y="166" fill="#F0997B" font-size="9.5" font-family="sans-serif">▪ 代码生成 / 修改</text><text x="468" y="180" fill="#F0997B" font-size="9.5" font-family="sans-serif">▪ 创建 Branch</text><text x="468" y="194" fill="#F0997B" font-size="9.5" font-family="sans-serif">▪ 创建 MR</text><text x="468" y="208" fill="#F0997B" font-size="9.5" font-family="sans-serif">▪ Review MR</text></g>
+  <path d="M 542 224 L 542 246 L 138 246 L 138 224" fill="none" stroke="#7d8590" stroke-width="1.5" marker-end="url(#a5)"/>
+  <text x="340" y="242" text-anchor="middle" fill="#7d8590" font-size="9.5" font-family="sans-serif">流程转折</text>
+  <g><rect x="48" y="250" width="184" height="130" rx="10" fill="#633806" stroke="#BA7517" stroke-width="0.75"/><text x="60" y="270" fill="#FAC775" font-size="11" font-family="sans-serif">④ Build</text><text x="60" y="286" fill="#EF9F27" font-size="10" font-family="sans-serif">Jenkins + Nexus</text><line x1="60" y1="294" x2="220" y2="294" stroke="#854F0B" stroke-width="0.5"/><text x="60" y="310" fill="#d2a8ff" font-size="9.5" font-weight="500" font-family="sans-serif">AI Agent:</text><text x="64" y="324" fill="#EF9F27" font-size="9.5" font-family="sans-serif">▪ 查看 Pipeline</text><text x="64" y="338" fill="#EF9F27" font-size="9.5" font-family="sans-serif">▪ 分析 Build Log</text><text x="64" y="352" fill="#EF9F27" font-size="9.5" font-family="sans-serif">▪ 诊断测试失败</text><text x="64" y="366" fill="#EF9F27" font-size="9.5" font-family="sans-serif">▪ 依赖问题分析</text></g>
+  <line x1="232" y1="315" x2="248" y2="315" stroke="#7d8590" stroke-width="1.5" marker-end="url(#a5)"/>
+  <g><rect x="250" y="250" width="184" height="130" rx="10" fill="#085041" stroke="#1D9E75" stroke-width="0.75"/><text x="262" y="270" fill="#9FE1CB" font-size="11" font-family="sans-serif">⑤ Deploy</text><text x="262" y="286" fill="#5DCAA5" font-size="10" font-family="sans-serif">Deployment · 部署</text><line x1="262" y1="294" x2="422" y2="294" stroke="#0F6E56" stroke-width="0.5"/><text x="262" y="310" fill="#d2a8ff" font-size="9.5" font-weight="500" font-family="sans-serif">AI Agent:</text><text x="266" y="324" fill="#5DCAA5" font-size="9.5" font-family="sans-serif">▪ 部署状态监控</text><text x="266" y="338" fill="#5DCAA5" font-size="9.5" font-family="sans-serif">▪ 健康检查</text><text x="266" y="352" fill="#5DCAA5" font-size="9.5" font-family="sans-serif">▪ 故障诊断</text><text x="266" y="366" fill="#5DCAA5" font-size="9.5" font-family="sans-serif">▪ Rollback 建议</text></g>
+  <line x1="434" y1="315" x2="450" y2="315" stroke="#7d8590" stroke-width="1.5" marker-end="url(#a5)"/>
+  <g><rect x="452" y="250" width="180" height="130" rx="10" fill="#0C447C" stroke="#378ADD" stroke-width="0.75"/><text x="464" y="270" fill="#B5D4F4" font-size="11" font-family="sans-serif">⑥ Feedback</text><text x="464" y="286" fill="#85B7EB" font-size="10" font-family="sans-serif">Plane + RagFlow</text><line x1="464" y1="294" x2="620" y2="294" stroke="#185FA5" stroke-width="0.5"/><text x="464" y="310" fill="#d2a8ff" font-size="9.5" font-weight="500" font-family="sans-serif">AI Agent:</text><text x="468" y="324" fill="#85B7EB" font-size="9.5" font-family="sans-serif">▪ 分析部署结果</text><text x="468" y="338" fill="#85B7EB" font-size="9.5" font-family="sans-serif">▪ 更新 Plane 进度</text><text x="468" y="352" fill="#85B7EB" font-size="9.5" font-family="sans-serif">▪ 生成文档</text><text x="468" y="366" fill="#85B7EB" font-size="9.5" font-family="sans-serif">▪ 知识沉淀</text></g>
+  <path d="M 632 315 C 668 315 668 157 632 157" fill="none" stroke="#bc8cff" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#a5r)"/>
+  <text x="664" y="240" text-anchor="middle" fill="#bc8cff" font-size="9.5" font-family="sans-serif" transform="rotate(90 664 240)">闭环 · Feedback → Requirement</text>
+  <text x="340" y="402" text-anchor="middle" fill="#7d8590" font-size="10" font-family="sans-serif">需求 → 规划 → 编码 → 构建 → 部署 → 反馈 → 需求 · AI Agent 贯穿每一步 · 数据自动流转 · 持续优化</text>
+  <text x="340" y="418" text-anchor="middle" fill="#7d8590" font-size="10" font-family="sans-serif">Plane Requirement → AI Agent → RagFlow 检索 → GitLab 代码/文档 → AI Coding → MR → Jenkins → Nexus → Deploy → AI 分析 → Plane 更新</text>
+  <text x="40" y="478" fill="#e6edf3" font-size="12" font-weight="500" font-family="sans-serif">AI Agent 能力矩阵 · 四类智能自动化</text>
+  <g><rect x="44" y="486" width="292" height="150" rx="10" fill="#3C3489" stroke="#7F77DD" stroke-width="0.5"/><text x="190" y="506" text-anchor="middle" fill="#CECBF6" font-size="12" font-weight="500" font-family="sans-serif">Project Management</text><line x1="56" y1="514" x2="324" y2="514" stroke="#534AB7" stroke-width="0.5"/><g font-family="sans-serif" font-size="9.5"><text x="56" y="532" fill="#AFA9EC">▪ 分析需求 · 拆解任务</text><text x="56" y="548" fill="#AFA9EC">▪ 创建 Issue · 更新任务</text><text x="56" y="564" fill="#AFA9EC">▪ 生成 Sprint · 更新进度</text><text x="56" y="580" fill="#AFA9EC">▪ 生成项目总结</text></g><rect x="56" y="594" width="80" height="26" rx="5" fill="#26215C" stroke="#7F77DD" stroke-width="0.5"/><text x="96" y="611" text-anchor="middle" fill="#CECBF6" font-size="10">→ Plane</text><text x="148" y="611" fill="#7d8590" font-size="9.5" font-family="sans-serif">项目管理自动化</text></g>
+  <g><rect x="346" y="486" width="290" height="150" rx="10" fill="#712B13" stroke="#D85A30" stroke-width="0.5"/><text x="491" y="506" text-anchor="middle" fill="#F5C4B3" font-size="12" font-weight="500" font-family="sans-serif">Development</text><line x1="358" y1="514" x2="624" y2="514" stroke="#993C1D" stroke-width="0.5"/><g font-family="sans-serif" font-size="9.5"><text x="358" y="532" fill="#F0997B">▪ 搜索代码 · 搜索文档</text><text x="358" y="548" fill="#F0997B">▪ 分析架构 · 修改代码</text><text x="358" y="564" fill="#F0997B">▪ 创建 Branch · 创建 MR</text><text x="358" y="580" fill="#F0997B">▪ Review MR · 测试辅助</text></g><rect x="358" y="594" width="86" height="26" rx="5" fill="#4A1B0C" stroke="#D85A30" stroke-width="0.5"/><text x="401" y="611" text-anchor="middle" fill="#F5C4B3" font-size="10">→ GitLab</text><text x="454" y="611" fill="#7d8590" font-size="9.5" font-family="sans-serif">研发智能化</text></g>
+  <g><rect x="44" y="648" width="292" height="150" rx="10" fill="#633806" stroke="#BA7517" stroke-width="0.5"/><text x="190" y="668" text-anchor="middle" fill="#FAC775" font-size="12" font-weight="500" font-family="sans-serif">CI/CD</text><line x1="56" y1="676" x2="324" y2="676" stroke="#854F0B" stroke-width="0.5"/><g font-family="sans-serif" font-size="9.5"><text x="56" y="694" fill="#EF9F27">▪ 查看 Pipeline 状态</text><text x="56" y="710" fill="#EF9F27">▪ 分析 Build Log</text><text x="56" y="726" fill="#EF9F27">▪ 分析测试失败原因</text><text x="56" y="742" fill="#EF9F27">▪ 分析 Deployment Failure</text></g><rect x="56" y="756" width="96" height="26" rx="5" fill="#412402" stroke="#BA7517" stroke-width="0.5"/><text x="104" y="773" text-anchor="middle" fill="#FAC775" font-size="10">→ Jenkins</text><text x="162" y="773" fill="#7d8590" font-size="9.5" font-family="sans-serif">构建部署运维</text></g>
+  <g><rect x="346" y="648" width="290" height="150" rx="10" fill="#72243E" stroke="#D4537E" stroke-width="0.5"/><text x="491" y="668" text-anchor="middle" fill="#F4C0D1" font-size="12" font-weight="500" font-family="sans-serif">Knowledge</text><line x1="358" y1="676" x2="624" y2="676" stroke="#993556" stroke-width="0.5"/><g font-family="sans-serif" font-size="9.5"><text x="358" y="694" fill="#ED93B1">▪ 查询 RagFlow 知识库</text><text x="358" y="710" fill="#ED93B1">▪ 总结客户历史项目</text><text x="358" y="726" fill="#ED93B1">▪ 查询部署/故障文档</text><text x="358" y="742" fill="#ED93B1">▪ 查询业务规则</text></g><rect x="358" y="756" width="92" height="26" rx="5" fill="#4B1528" stroke="#D4537E" stroke-width="0.5"/><text x="404" y="773" text-anchor="middle" fill="#F4C0D1" font-size="10">→ RagFlow</text><text x="458" y="773" fill="#7d8590" font-size="9.5" font-family="sans-serif">知识检索赋能</text></g>
+  <rect x="44" y="812" width="592" height="92" rx="10" fill="#161b22" stroke="#30363d" stroke-width="0.5"/>
+  <text x="56" y="832" fill="#e6edf3" font-size="12" font-weight="500" font-family="sans-serif">权限约束 · AI Agent 不超越用户授权</text>
+  <line x1="56" y1="840" x2="628" y2="840" stroke="#30363d" stroke-width="0.5"/>
+  <g font-family="sans-serif" font-size="9.5"><rect x="56" y="850" width="96" height="22" rx="4" fill="#3C3489" stroke="#7F77DD" stroke-width="0.5"/><text x="104" y="865" text-anchor="middle" fill="#CECBF6">Plane Project</text><rect x="160" y="850" width="96" height="22" rx="4" fill="#712B13" stroke="#D85A30" stroke-width="0.5"/><text x="208" y="865" text-anchor="middle" fill="#F5C4B3">GitLab Project</text><rect x="264" y="850" width="104" height="22" rx="4" fill="#72243E" stroke="#D4537E" stroke-width="0.5"/><text x="316" y="865" text-anchor="middle" fill="#F4C0D1">RagFlow Knowledge</text><rect x="376" y="850" width="88" height="22" rx="4" fill="#633806" stroke="#BA7517" stroke-width="0.5"/><text x="420" y="865" text-anchor="middle" fill="#FAC775">Jenkins Job</text><rect x="472" y="850" width="96" height="22" rx="4" fill="#0C447C" stroke="#378ADD" stroke-width="0.5"/><text x="520" y="865" text-anchor="middle" fill="#B5D4F4">Nexus Artifact</text><text x="576" y="865" fill="#7d8590" font-size="9">→ 仅授权范围</text></g>
+  <text x="56" y="888" fill="#7d8590" font-size="10" font-family="sans-serif">AI Agent 只能操作当前用户授权范围内的系统资源 · 权限源自 GitLab Group/Project · 不拥有超出用户的访问能力</text>
+</svg>
+  </div>
+</section>
+
+<!-- ========== 职责矩阵 ========== -->
+<section id="matrix">
+  <div class="sec-head">
+    <span class="sec-num">06</span>
+    <h2>系统职责边界矩阵</h2>
+  </div>
+  <p class="sec-desc">六大核心系统的职责边界——每个系统管什么、不管什么，一目了然。这是整套架构的"宪法"。</p>
+  <div class="matrix">
+    <div class="matrix-item m-plane">
+      <h4 style="color:var(--plane)">Plane</h4>
+      <div class="role">= What / Why · 项目管理 / 工作管理系统</div>
+      <div class="duty">Project · Requirement · Issue · Task · Sprint · Milestone · Roadmap · Progress · Work Assignment · Product Planning<br><br>不作为代码仓库 · 不作为技术文档 Source of Truth</div>
+    </div>
+    <div class="matrix-item m-gitlab">
+      <h4 style="color:var(--gitlab)">GitLab</h4>
+      <div class="role">= Code / Technical Knowledge · Source of Truth</div>
+      <div class="duty">Git Repository · Group/Subgroup/Project · Branch · Tag · MR · Code Review · Issue · Release · Documentation · Metadata · Build/Deploy Config<br><br>不做制品中心（由 Nexus 负责）</div>
+    </div>
+    <div class="matrix-item m-jenkins">
+      <h4 style="color:var(--jenkins)">Jenkins</h4>
+      <div class="role">= How · CI/CD Orchestrator</div>
+      <div class="duty">Pipeline · Build · Test · Package · Artifact Promotion · Deployment · Build Agent Scheduling · Docker Build<br><br>不做代码存储 · 不做制品存储</div>
+    </div>
+    <div class="matrix-item m-nexus">
+      <h4 style="color:var(--nexus)">Nexus</h4>
+      <div class="role">= What was built · Dependency + Artifact Repository</div>
+      <div class="duty">Third-party Proxy · Dependency Cache · Internal Packages · Build/Release Artifacts · Docker Registry · NuGet · Maven · npm · Generic<br><br>Artifact Source of Truth · 不与 GitLab 重复</div>
+    </div>
+    <div class="matrix-item m-ragflow">
+      <h4 style="color:var(--ragflow)">RagFlow</h4>
+      <div class="role">= What we know · AI Knowledge Retrieval Layer</div>
+      <div class="duty">Document Parsing · Indexing · Chunking · Embedding · Retrieval · Knowledge Base · AI Q&A<br><br>不作为原始文档存储系统（GitLab 才是）</div>
+    </div>
+    <div class="matrix-item m-ai">
+      <h4 style="color:var(--ai)">AI Agent</h4>
+      <div class="role">= Intelligent Worker · Cross-system Automation</div>
+      <div class="duty">Requirement Analysis · Issue Creation · Code Search/Gen · MR Creation · Build/Log Analysis · Doc Generation · Knowledge Retrieval<br><br>横向连接各系统 · 不超越用户权限</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 设计原则 ========== -->
+<section id="principles">
+  <div class="sec-head">
+    <span class="sec-num">07</span>
+    <h2>核心设计原则</h2>
+  </div>
+  <p class="sec-desc">20 条核心设计思想，贯穿整套架构。从职责分离到全链路可追溯，从 AI-friendly 到权限约束。</p>
+  <div class="principles">
+    <div class="principle"><span class="num">1</span><b>Plane 管项目和需求</b>，GitLab 管代码和技术知识，职责不混</div>
+    <div class="principle"><span class="num">2</span><b>Jenkins 管自动化执行</b>，Nexus 管依赖和制品，各司其职</div>
+    <div class="principle"><span class="num">3</span><b>RagFlow 管知识检索</b>，不做原始存储，GitLab 才是 Source of Truth</div>
+    <div class="principle"><span class="num">4</span><b>AI Agent 横向连接</b>整个研发流程，跨系统自动化</div>
+    <div class="principle"><span class="num">5</span><b>Git Repository</b> 是项目技术知识 Source of Truth</div>
+    <div class="principle"><span class="num">6</span><b>Nexus</b> 是 Artifact Source of Truth</div>
+    <div class="principle"><span class="num">7</span><b>Customer 与 Product 分离</b>，客户项目不复制产品代码</div>
+    <div class="principle"><span class="num">8</span><b>通用能力优先</b>通过 Configuration / Plugin / SDK 实现</div>
+    <div class="principle"><span class="num">9</span><b>Build Agent</b> 根据 Customer / Project / Technology Stack 选择</div>
+    <div class="principle"><span class="num">10</span><b>Build Environment 可追踪</b>，记录 Agent / 工具链版本</div>
+    <div class="principle"><span class="num">11</span><b>Artifact 可追踪</b>，含 Commit / Build / Agent / Dependencies</div>
+    <div class="principle"><span class="num">12</span><b>Deployment 可追踪</b>，知道什么版本部署到哪里</div>
+    <div class="principle"><span class="num">13</span><b>AI 检索遵循用户权限</b>，不绕过 GitLab 权限模型</div>
+    <div class="principle"><span class="num">14</span><b>project.yaml 驱动</b> Jenkins 全流程决策</div>
+    <div class="principle"><span class="num">15</span><b>Nexus 双流分离</b>：依赖流拉取 + 制品流推送</div>
+    <div class="principle"><span class="num">16</span><b>双部署路径</b>：SaaS 自动 + 客户现场离线包</div>
+    <div class="principle"><span class="num">17</span><b>Docker Build</b> 是 Pipeline 的 Build Strategy，非独立 CI</div>
+    <div class="principle"><span class="num">18</span><b>文档与代码同版本控制</b>，Markdown/YAML/Mermaid 优先</div>
+    <div class="principle"><span class="num">19</span><b>关键工程信息结构化</b>、版本化、AI-friendly</div>
+    <div class="principle"><span class="num">20</span><b>完整 DevOps + AI SDLC 闭环</b>：Customer → Knowledge → AI Automation</div>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  现代化客户项目管理 + 软件研发 + DevOps + 制品管理 + AI 知识管理平台 · 总体架构设计<br>
+  Plane · GitLab · Jenkins · Nexus · RagFlow · AI Agent — 自建部署 · 完整可追踪 · AI-friendly
+</footer>
+
+<script>
+  // Nav active state on scroll
+  const sections = document.querySelectorAll('section');
+  const navLinks = document.querySelectorAll('nav a');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(sec => {
+      const top = sec.offsetTop - 80;
+      if (window.scrollY >= top) current = sec.id;
+    });
+    navLinks.forEach(a => {
+      a.classList.remove('active');
+      if (a.getAttribute('href') === '#' + current) a.classList.add('active');
+    });
+  });
+</script>
+
+</body>
+</html>

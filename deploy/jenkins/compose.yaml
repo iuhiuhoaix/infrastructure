@@ -1,0 +1,30 @@
+# Jenkins Controller — 独立 Compose，无内部 DB 依赖
+# 端口策略：
+#   - 127.0.0.1:8081:8080 → Web UI（仅本机，Nginx 反代）
+#   - 50000 端口仅内部 devops-internal（inbound agent 历史 TCP；推荐改 WebSocket 走 443）
+# Agent：Linux Docker Agent 同 Host 容器；Windows Agent 独立 Server，WebSocket inbound
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17
+    container_name: jenkins
+    restart: unless-stopped
+    hostname: jenkins
+    environment:
+      JAVA_OPTS: "-Djenkins.install.runSetupWizard=true"
+      # 反代相关
+      JENKINS_OPTS: "--httpPort=8080 --prefix=/"
+    env_file: .env
+    ports:
+      - "127.0.0.1:8081:8080"   # Web UI，仅本机
+    volumes:
+      - ./data:/var/jenkins_home
+      # 可选：让 Controller 能触发 Docker 构建（Linux Agent 模式）
+      # - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      devops-internal:
+        aliases:
+          - jenkins
+
+networks:
+  devops-internal:
+    external: true
