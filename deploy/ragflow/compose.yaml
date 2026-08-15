@@ -1,18 +1,33 @@
-# RagFlow — 独立 Compose，全套依赖自管（ES+PG+Redis+MinIO）
-# 端口策略：
-#   - 127.0.0.1:9380:9380 → Web/API（仅本机，Nginx → rag.example.com）
-# ES 内存大，单机建议至少 16G RAM。LLM API Key 走 .env
-# 升级：docker compose pull && up -d（含依赖一起升，零外部牵连）
+# RagFlow — 占位骨架（⚠️ 灰灰将基于官方 compose 重新部署，本文件仅作架构对接参考）
+#
+# 2026-08-15 核查修正（对照官方 docker-compose 文档）：
+#   1. 数据库是 MySQL 8（官方 mysql:8.0.39），不是 PostgreSQL —— 已修正
+#   2. 对外 Web 端口是容器内 nginx 的 80（9380 是后端 API 内部端口）
+#      → 映射 127.0.0.1:9380:80，nginx rag.example.com → 127.0.0.1:9380
+#   3. embedding：官方内置 TEI 服务，TEI_MODEL 可选 BAAI/bge-m3 或 Qwen/Qwen3-Embedding-0.6B
+#      （TEI 在官方 docker-compose-base.yml 的 tei profile 中，此处未展开）
+#   4. 前置要求：宿主机 vm.max_map_count >= 262144（ES 必需）
+#   5. 官方结构 = docker-compose.yml(ragflow) + docker-compose-base.yml(依赖+profiles)，
+#      依赖服务可整体照搬官方并套用下方网络/端口策略
+#
+# 对接约定（无论怎么改，保持以下三点即可无缝接入平台）：
+#   - ragflow 服务挂 devops-internal + alias ragflow
+#   - Web 暴露 127.0.0.1:9380:80
+#   - 依赖（MySQL/ES/MinIO/Redis）锁 default network
 services:
   ragflow:
-    image: infiniflow/ragflow:latest
+    image: ${RAGFLOW_IMAGE:-infiniflow/ragflow:v0.26.4}
     container_name: ragflow
-    restart: unless-stopped
     hostname: ragflow
+    restart: unless-stopped
     env_file: .env
-    depends_on: [elasticsearch, postgres, redis, minio]
+    depends_on:
+      - mysql
+      - es01
+      - minio
+      - redis
     ports:
-      - "127.0.0.1:9380:9380"   # Web/API，仅本机
+      - "127.0.0.1:9380:80"    # Web UI / API（容器内 nginx:80）
     volumes:
       - ./data/ragflow:/ragflow/data
     networks:
@@ -21,8 +36,23 @@ services:
         aliases:
           - ragflow
 
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.3
+  # ---------- 依赖（全部锁 default，邻居不可见）----------
+  mysql:
+    image: mysql:8.0.39
+    container_name: ragflow-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ragflow
+      MYSQL_USER: ragflow
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    networks:
+      default: {}
+
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION:-8.11.3}
     container_name: ragflow-es
     restart: unless-stopped
     environment:
@@ -31,28 +61,6 @@ services:
       ES_JAVA_OPTS: "-Xms2g -Xmx2g"
     volumes:
       - ./data/es:/usr/share/elasticsearch/data
-    networks:
-      default: {}
-
-  postgres:
-    image: postgres:16-alpine
-    container_name: ragflow-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ragflow
-      POSTGRES_USER: ragflow
-      POSTGRES_PASSWORD: ${PGPASSWORD}
-    volumes:
-      - ./data/postgres:/var/lib/postgresql/data
-    networks:
-      default: {}
-
-  redis:
-    image: redis:7-alpine
-    container_name: ragflow-redis
-    restart: unless-stopped
-    volumes:
-      - ./data/redis:/data
     networks:
       default: {}
 
@@ -66,6 +74,15 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
     volumes:
       - ./data/minio:/data
+    networks:
+      default: {}
+
+  redis:
+    image: redis:7-alpine
+    container_name: ragflow-redis
+    restart: unless-stopped
+    volumes:
+      - ./data/redis:/data
     networks:
       default: {}
 

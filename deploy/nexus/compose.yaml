@@ -1,26 +1,32 @@
-# Nexus Repository — 独立 Compose，单容器无内部依赖
-# 双角色：依赖代理(Maven/npm/NuGet) + 制品仓库(Docker Registry)
-# 端口策略：
-#   - 127.0.0.1:8082:8081 → Web UI / 依赖仓库（仅本机，Nginx → nexus.example.com）
-#   - 127.0.0.1:8083:8082 → Docker Registry（仅本机，Nginx → reg.example.com，client_max_body_size 0）
-# 内部 CI 流量（Jenkins/Agent 拉 Nexus）走 devops-internal 直连 http://nexus:8081
+# Nexus Repository 3 — 正式版 compose（2026-08-15 接管现有实例）
+# ⚠️ 镜像锁 digest：与服务器现有运行实例（2026-06-02 构建）完全一致，零升级风险。
+#    升级时显式改 NEXUS_IMAGE（.env 覆盖）并先做 blob 备份。
+#
+# 端口策略（只绑 127.0.0.1，由宿主机 Nginx 反代，不直接对外）：
+#   127.0.0.1:8082 -> 8081  Web UI / Maven / npm / NuGet / Generic
+#   127.0.0.1:8083 -> 8082  Docker Registry（Nginx: reg.example.com, client_max_body_size 0）
+# 内部 CI 流量：Jenkins/Build Agent 经 devops-internal 直连 http://nexus:8081
+#
+# 数据：bind mount 到 ${NEXUS_DATA_DIR:-./data}，与旧实例数据无缝衔接（rsync 迁移）
 services:
   nexus:
-    image: sonatype/nexus3:3.73.0
+    image: ${NEXUS_IMAGE:-sonatype/nexus3@sha256:c480a686375bd15a76d9011b7ae263ddffe3897659d183ce88c3a53998453aa2}
     container_name: nexus
-    restart: unless-stopped
     hostname: nexus
+    restart: unless-stopped
     env_file: .env
     ports:
       - "127.0.0.1:8082:8081"   # UI + 依赖仓库
       - "127.0.0.1:8083:8082"   # Docker Registry
     volumes:
-      - ./data:/nexus-data
+      - ${NEXUS_DATA_DIR:-./data}:/nexus-data
     networks:
+      default: {}
       devops-internal:
         aliases:
           - nexus
 
 networks:
+  default: {}
   devops-internal:
     external: true
