@@ -44,7 +44,6 @@ services:
     # Example configuration to start Admin server:
     command:
       - --enable-adminserver
-      - --init-model-provider-tables
     ports:
       - ${SVR_WEB_HTTP_PORT}:80
       - ${SVR_WEB_HTTPS_PORT}:443
@@ -59,7 +58,8 @@ services:
       # - ./nginx/proxy.conf:/etc/nginx/proxy.conf
       # - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./service_conf.yaml.template:/ragflow/conf/service_conf.yaml.template
-      - ./entrypoint.sh:/ragflow/entrypoint.sh
+      # entrypoint.sh 注释掉，用镜像内置脚本（v0.26.4 镜像内无 run_migrations.sh，挂载宿主机版会报错）
+      # - ./entrypoint.sh:/ragflow/entrypoint.sh
     env_file: .env
     networks:
       - ragflow
@@ -107,7 +107,8 @@ services:
       # - ./nginx/proxy.conf:/etc/nginx/proxy.conf
       # - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./service_conf.yaml.template:/ragflow/conf/service_conf.yaml.template
-      - ./entrypoint.sh:/ragflow/entrypoint.sh
+      # entrypoint.sh 注释掉，用镜像内置脚本（v0.26.4 镜像内无 run_migrations.sh，挂载宿主机版会报错）
+      # - ./entrypoint.sh:/ragflow/entrypoint.sh
     env_file: .env
     networks:
       - ragflow
