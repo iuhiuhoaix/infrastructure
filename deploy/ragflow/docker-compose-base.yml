@@ -5,10 +5,8 @@ services:
     image: elasticsearch:${STACK_VERSION}
     volumes:
       - /dockerData/RagFlow/es:/usr/share/elasticsearch/data
-    # Official ES image ACL on /tmp denies writes for user elasticsearch (r-x only).
-    # entrypoint.sh needs a writable temp dir for bash here-documents.
-    tmpfs:
-      - /tmp:mode=1777,size=512m
+      # Fedora 容器 tmpfs 默认 noexec，jansi 原生库在 /tmp 无法执行 → tmpdir 指到 data 目录（可执行）
+      - /dockerData/RagFlow/es/tmp:/usr/share/elasticsearch/tmp
     ports:
       - ${ES_PORT}:9200
     env_file: .env
@@ -23,6 +21,7 @@ services:
       - cluster.routing.allocation.disk.watermark.low=5gb
       - cluster.routing.allocation.disk.watermark.high=3gb
       - cluster.routing.allocation.disk.watermark.flood_stage=2gb
+      - ES_JAVA_OPTS=-Djava.io.tmpdir=/usr/share/elasticsearch/tmp
     mem_limit: ${MEM_LIMIT}
     ulimits:
       memlock:
