@@ -17,13 +17,14 @@
 | 服务器 GitLab 19.1.3-ce 部署 | `192.168.199.131:8080`（SSH 2222） |
 | 服务器 Plane 1.4.0 部署（微服务 4 前端 + MinIO 图片上传修复） | `192.168.199.131:3000` |
 | 服务器 Nexus 接管（锁 digest，UI/Registry 双端口） | `8081` UI / `8083` Registry |
+| **Jenkins 2.568.2 迁移恢复（从 192.168.199.130）** | `192.168.199.131:8082`，2 job + 101 插件 + win-build 节点配置全部还原 |
 | 服务器 BGE-M3 embedding 留用 | `:7997`（RagFlow 对接） |
 | 服务器 git 化切换 | `/opt/devops` → 软链 `/opt/infrastructure/deploy` |
 | Dify 已停、SVN 已删 | 80/443 释放 |
 
 ### 待办 🔜
 - **RagFlow**：灰灰基于官方 compose（MySQL 8.0.39 + nginx 9380:80）重写，我的骨架仅占位
-- **Jenkins**：尚未部署（下一步）
+- **win-build agent 上线**：Jenkins 已迁移完成，agent 配置在（192.168.199.249），SSH 连接待 agent 机器就绪
 - **Nginx 反代 / TLS**：等有外网地址再统一接（现阶段内网直连）
 - 待深入：Nexus repo 划分策略 / Jenkins Label·Agent·Folder 组织 / RagFlow 权限 scope
 
@@ -34,6 +35,7 @@
 | GitLab | 8080 + 2222 | 数据 `/dockerData/gitlab`，root 密码在 `/opt/infrastructure/deploy/gitlab/.env` |
 | Plane | 3000 | 数据 `/dockerData/plane`，9 容器全健康，`.env` 密码同侧 |
 | Nexus | 8081 / 8083 | 数据 `/opt/infrastructure/deploy/nexus/data`（719M） |
+| Jenkins | 8082 | 2.568.2-jdk21 镜像（锁 digest），数据 `deploy/jenkins/data`（1.6G 迁移自 130） |
 | BGE-M3 | 7997 | `michaelf34/infinity:latest`，HF_HUB_OFFLINE=1 |
 | mihomo | 7897 HTTP / 7898 SOCKS5 | 服务器拉镜像/拉 git 走 7897 代理 |
 
