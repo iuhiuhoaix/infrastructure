@@ -94,7 +94,9 @@ user_default_llm:
   default_models:
     embedding_model:
       api_key: 'xxx'
-      base_url: 'http://${TEI_HOST}:80'
+      base_url: 'http://embedding-service:80'
+# 注：embedding 由独立 ragflow-models compose 提供（ragflow_ragflow 网络别名 embedding-service）
+# rerank_model 在 RAGFlow UI 的 Model Providers 里配：base_url=http://reranker-service:80, model=BAAI/bge-reranker-v2-m3
 # postgres:
 #   name: '${POSTGRES_DBNAME:-rag_flow}'
 #   user: '${POSTGRES_USER:-rag_flow}'
