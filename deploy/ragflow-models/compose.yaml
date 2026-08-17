@@ -1,0 +1,120 @@
+name: ragflow-models
+
+x-tei-common: &tei-common
+  init: true
+  restart: unless-stopped
+  volumes:
+    - type: bind
+      source: ${MODEL_CACHE_DIR:-./models}
+      target: /data
+  environment:
+    HUGGINGFACE_HUB_CACHE: /data
+    HF_HOME: /data
+    HF_ENDPOINT: ${HF_ENDPOINT:-https://huggingface.co}
+  healthcheck:
+    test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://localhost/health"]
+    interval: 15s
+    timeout: 5s
+    retries: 20
+    start_period: 10m
+  networks:
+    ragflow-internal: {}
+  logging:
+    driver: json-file
+    options:
+      max-size: ${MODEL_LOG_MAX_SIZE:-100m}
+      max-file: ${MODEL_LOG_MAX_FILES:-5}
+
+x-embedding-command: &embedding-command
+  - --model-id
+  - ${EMBEDDING_MODEL_ID:-BAAI/bge-m3}
+  - --revision
+  - ${EMBEDDING_MODEL_REVISION:-5617a9f61b028005a4858fdac845db406aefb181}
+  - --auto-truncate
+  - --max-concurrent-requests
+  - ${EMBEDDING_MAX_CONCURRENT_REQUESTS:-64}
+  - --max-batch-tokens
+  - ${EMBEDDING_MAX_BATCH_TOKENS:-16384}
+  - --json-output
+
+x-reranker-command: &reranker-command
+  - --model-id
+  - ${RERANKER_MODEL_ID:-BAAI/bge-reranker-v2-m3}
+  - --revision
+  - ${RERANKER_MODEL_REVISION:-953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e}
+  - --auto-truncate
+  - --max-concurrent-requests
+  - ${RERANKER_MAX_CONCURRENT_REQUESTS:-32}
+  - --max-batch-tokens
+  - ${RERANKER_MAX_BATCH_TOKENS:-8192}
+  - --json-output
+
+services:
+  embedding-cpu:
+    <<: *tei-common
+    profiles: [models-cpu]
+    image: ${TEI_CPU_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.8.3@sha256:8de25e75ce39617f17f2f6c77d60a4f75b65e779ed5005420eb1400072a15c1c}
+    command: *embedding-command
+    cpus: ${EMBEDDING_CPUS:-8.0}
+    mem_limit: ${EMBEDDING_MEMORY_LIMIT:-8g}
+    ports:
+      - ${MODEL_BIND_ADDRESS:-127.0.0.1}:${EMBEDDING_PORT:-8080}:80
+    networks:
+      ragflow-internal:
+        aliases: ["${EMBEDDING_NETWORK_ALIAS:-embedding-service}"]
+
+  reranker-cpu:
+    <<: *tei-common
+    profiles: [models-cpu]
+    image: ${TEI_CPU_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.8.3@sha256:8de25e75ce39617f17f2f6c77d60a4f75b65e779ed5005420eb1400072a15c1c}
+    command: *reranker-command
+    cpus: ${RERANKER_CPUS:-8.0}
+    mem_limit: ${RERANKER_MEMORY_LIMIT:-8g}
+    ports:
+      - ${MODEL_BIND_ADDRESS:-127.0.0.1}:${RERANKER_PORT:-8081}:80
+    networks:
+      ragflow-internal:
+        aliases: ["${RERANKER_NETWORK_ALIAS:-reranker-service}"]
+
+  embedding-gpu:
+    <<: *tei-common
+    profiles: [models-gpu]
+    image: ${TEI_GPU_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:86-1.8.3@sha256:65f792e790f976713a5d2ab2586d93d074203d1f0ec2045e87e60113fbd0e256}
+    command: *embedding-command
+    mem_limit: ${EMBEDDING_GPU_MEMORY_LIMIT:-16g}
+    ports:
+      - ${MODEL_BIND_ADDRESS:-127.0.0.1}:${EMBEDDING_PORT:-8080}:80
+    networks:
+      ragflow-internal:
+        aliases: ["${EMBEDDING_NETWORK_ALIAS:-embedding-service}"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${EMBEDDING_GPU_DEVICE_ID:-0}"]
+              capabilities: [gpu]
+
+  reranker-gpu:
+    <<: *tei-common
+    profiles: [models-gpu]
+    image: ${TEI_GPU_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:86-1.8.3@sha256:65f792e790f976713a5d2ab2586d93d074203d1f0ec2045e87e60113fbd0e256}
+    command: *reranker-command
+    mem_limit: ${RERANKER_GPU_MEMORY_LIMIT:-16g}
+    ports:
+      - ${MODEL_BIND_ADDRESS:-127.0.0.1}:${RERANKER_PORT:-8081}:80
+    networks:
+      ragflow-internal:
+        aliases: ["${RERANKER_NETWORK_ALIAS:-reranker-service}"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${RERANKER_GPU_DEVICE_ID:-0}"]
+              capabilities: [gpu]
+
+networks:
+  ragflow-internal:
+    external: true
+    name: ${RAGFLOW_NETWORK_NAME:-ragflow_ragflow}

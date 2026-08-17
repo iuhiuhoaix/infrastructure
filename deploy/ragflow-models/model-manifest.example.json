@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "embedding": {
+    "compatibility": {
+      "model_id": "BAAI/bge-m3",
+      "model_revision": "5617a9f61b028005a4858fdac845db406aefb181",
+      "tokenizer_revision": "5617a9f61b028005a4858fdac845db406aefb181",
+      "dimension": 1024,
+      "pooling": "cls",
+      "normalization": "l2",
+      "prompt": null,
+      "output_encoding": "float32"
+    },
+    "compatibility_hash": "sha256:6db091509f3a9ec41924568793733a2538cf47edab33c510de32214fcd6031b5",
+    "runtime_provenance": {
+      "framework": "text-embeddings-inference",
+      "framework_version": "1.8.3",
+      "image": "ghcr.io/huggingface/text-embeddings-inference:cpu-1.8.3",
+      "image_digest": "sha256:8de25e75ce39617f17f2f6c77d60a4f75b65e779ed5005420eb1400072a15c1c",
+      "hardware": "cpu"
+    }
+  },
+  "reranker": {
+    "model_id": "BAAI/bge-reranker-v2-m3",
+    "model_revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+    "runtime": "text-embeddings-inference",
+    "runtime_version": "1.8.3"
+  },
+  "knowledge_base_bindings": [
+    {
+      "knowledge_base_id": "REPLACE_WITH_RAGFLOW_KB_ID",
+      "document_version": "REPLACE_WITH_SOURCE_REVISION",
+      "chunk_version": "sha256:REPLACE_WITH_CHUNK_CONFIG_HASH",
+      "embedding_version": "sha256:6db091509f3a9ec41924568793733a2538cf47edab33c510de32214fcd6031b5",
+      "reranker_version": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e"
+    }
+  ]
+}
