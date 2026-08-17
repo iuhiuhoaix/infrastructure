@@ -37,7 +37,10 @@
 | BGE-M3 | 7997 | `michaelf34/infinity:latest`，HF_HUB_OFFLINE=1 |
 | mihomo | 7897 HTTP / 7898 SOCKS5 | 服务器拉镜像/拉 git 走 7897 代理 |
 
-**服务器更新流程（已确立）**：本地改 → commit → push → 服务器 `cd /opt/infrastructure && git pull`（直连 GitHub 已通；mihomo 7897 代理与 git TLS 握手不兼容会报 TLS connect error，勿再给 git 配 http.proxy）。
+**服务器更新流程（已确立）**：本地改 → commit → push → 服务器 `cd /opt/infrastructure && git pull`。
+- **GitHub 直连不稳定**（时通时断，2026-08-17 实测下午直连超时、代理 200），pull 前先 curl 探一下。
+- **稳定走法（小写环境变量或 -c）**：`http_proxy=http://127.0.0.1:7897 https_proxy=http://127.0.0.1:7897 git pull`，或 `git -c http.proxy=http://127.0.0.1:7897 pull`。
+- **坑**：Linux 上 git 忽略大写 `HTTP_PROXY`/`HTTPS_PROXY` 环境变量（curl 惯例防注入），大写方式=直连=时好时坏；勿写死 `git config http.proxy`（网络切换时反而卡死）。
 
 ## 换机迁移清单
 
