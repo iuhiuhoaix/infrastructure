@@ -11,14 +11,14 @@ services:
     hostname: jenkins
     environment:
       TZ: Asia/Shanghai
-      JAVA_OPTS: "-Djenkins.install.runSetupWizard=true -Duser.timezone=Asia/Shanghai"
+      JAVA_OPTS: "-Djenkins.install.runSetupWizard=false -Duser.timezone=Asia/Shanghai"   # false：迁移场景，JENKINS_HOME 已有全套配置，禁止弹安装向导
       # 反代相关
       JENKINS_OPTS: "--httpPort=8080 --prefix=/"
     env_file: .env
     ports:
       - "8082:8080"   # Web UI，内网直连（暂不绑 127.0.0.1，Nginx 未上）
     volumes:
-      - ./data:/var/jenkins_home
+      - ./data:/var/jenkins_home:Z   # :Z — SELinux Enforcing 下容器可写（Fedora）
       # 可选：让 Controller 能触发 Docker 构建（Linux Agent 模式）
       # - /var/run/docker.sock:/var/run/docker.sock
     networks:
