@@ -67,9 +67,10 @@ Module 按**工作维度**分，不是按技术组件分。以基建平台 INFRA
 - step 1
 - step 2
 关联资源：
-- GitLab: http://192.168.199.131:8080/kdev/assets/infrastructure
-- 文档: docs/xxx.md
-- commit: abc1234
+- GitLab Issue: [#15 标题](http://192.168.199.131:8080/kdev/assets/infrastructure/-/issues/15)
+- MR: [!42 标题](http://192.168.199.131:8080/kdev/assets/infrastructure/-/merge_requests/42)
+- 文档: [docs/xxx.md](http://192.168.199.131:8080/kdev/assets/infrastructure/-/blob/main/docs/xxx.md)
+- commit: [abc1234](http://192.168.199.131:8080/kdev/assets/infrastructure/-/commit/abc1234)
 ```
 
 ### priority
@@ -81,19 +82,60 @@ Module 按**工作维度**分，不是按技术组件分。以基建平台 INFRA
 | low | 有空再做/等外部条件 |
 | none | 未评估 |
 
-### 关联
-- **Module**：每个 Issue 归属一个工作方向 Module
-- **GitLab Issue 互引**：Plane Issue（业务侧）↔ GitLab Issue（代码侧）URL 互引，数据不同步各系统自治
+### GitLab 引用规范
+
+**三层引用**（主关联走字段，全量关联走描述，双向可追溯）：
+
+1. **主关联用结构化字段**：Plane Issue 的 `external_source="gitlab"` + `external_id="kdev/assets/infrastructure#15"`，程序可读，AI/工具能直接查对应 GitLab Issue。
+2. **描述里"关联资源"区**：列全量相关 GitLab 资源（一个需求可能拆多个 MR），用 Markdown 链接。
+3. **双向引用**：GitLab Issue/MR 描述里也贴 Plane Issue URL。
+
+**链接文字约定**（团队统一，一眼识别类型）：
+
+| 类型 | 文字格式 | 示例 |
+|---|---|---|
+| GitLab Issue | `[#编号 标题]` | `[#15 compose 入库]` |
+| GitLab MR | `[!编号 标题]` | `[!42 修正 compose]` |
+| 文档/文件 | `[路径]` | `[docs/architecture-review.md]` |
+| commit | `[短hash]` | `[88feec6]` |
+
+**双向引用示例**（GitLab 侧）：
+```markdown
+## 业务需求
+Plane: [INFRA-1 RagFlow 本体对接](http://192.168.199.131:3000/kdev/INFRA/INFRA-1)
+```
+
+**不要做的事**：
+- ❌ 复制 GitLab MR 的 diff 到 Plane Issue——只贴链接，各系统自治
+- ❌ 手动同步状态——Plane 管需求状态，GitLab 管 MR 状态，各自流转
+- ❌ 贴裸 URL——用 `[!42 标题](url)` 替代长串 URL
+
+**原则**：主关联走 `external_source`/`external_id` 字段（程序可读），全量关联走描述里"关联资源"区（人类可读），双向贴 URL 保证可追溯，**只互引不同步**。
+
+### Module 关联
+- 每个 Issue 归属一个工作方向 Module
 
 ## 7. 与其他系统的边界
 
 | 系统 | 职能 | Plane 关系 |
 |---|---|---|
-| GitLab | 工程资产 SoT（代码/文档/MR） | Issue URL 互引；文档在 GitLab 不在 Plane |
+| GitLab | 工程资产 SoT（代码/MR/文档） | 每个 repo 自带 `docs/`；Issue URL 互引；文档在 GitLab 不在 Plane |
 | Jenkins | 执行层（Build/Test/Deploy） | Plane Issue 描述里引用 Jenkins job |
 | Nexus | 制品 SoT | Plane Issue 描述里引用制品坐标 |
-| RagFlow | 知识索引 | 检索 GitLab 文档，不直接碰 Plane |
-| AI Agent | 横向智能层 | 通过 plane MCP 操作 Plane |
+| RagFlow | 知识索引 | 索引各 repo 的 `docs/`，不直接碰 Plane |
+| AI Agent | 横向智能层 | 通过 plane MCP 操作 Plane；跨 repo 检索 `docs/` |
+
+### 文档归属策略
+
+**每个 repo 自带 `docs/` 目录**，文档跟着代码走（同 repo 一起 MR 评审、版本控制），不建独立 docs 仓库、不用 GitLab Wiki：
+
+```
+kdev/assets/infrastructure/docs/    ← 基建平台文档
+kdev/assets/products/erp/docs/      ← ERP 产品文档
+kdev/客户/c0108/docs/               ← 客户交付文档
+```
+
+**检索层汇聚**：RagFlow 索引所有 repo 的 `docs/`，AI Agent 跨 repo 检索——文档物理分布、逻辑统一。单个 repo 的 `docs/` 只管自己产品/客户的文档，跨产品知识检索交给 Agent/RagFlow。
 
 ## 8. AI Agent / MCP 接入
 
