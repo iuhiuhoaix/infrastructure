@@ -9,21 +9,21 @@
 
 | 服务 | 职能 | 地址 | SoT? | 备注 |
 |---|---|---|---|---|
-| GitLab | 工程资产（代码/文档/配置/MR/Release 声明） | `:8080` HTTP · `:2222` SSH | ✅ | 19.1.3-ce，数据 `/dockerData/gitlab` |
-| Plane | 项目工作（需求/任务/进度/里程碑） | `:3000` | ✅ | 1.4.0，workspace=`kdev` |
-| Jenkins | 执行层（Build/Test/Package/Deploy） | `:8082` | ❌ | 2.568.2-jdk21，2 job + win-build 节点 |
-| Nexus | 制品（包/镜像/依赖/Registry） | `:8081` UI · `:8083` Registry | ✅ | 数据 `/dockerData/nexus` |
-| RagFlow | 知识索引（检索/RAG，可重建投影） | `:9380` | ❌ | 本体对接中（模型层已就绪） |
+| GitLab | 工程资产（代码/文档/配置/MR/Release 声明） | http://192.168.199.131:8080 · ssh://git@192.168.199.131:2222 | ✅ | 19.1.3-ce，数据 `/dockerData/gitlab` |
+| Plane | 项目工作（需求/任务/进度/里程碑） | http://192.168.199.131:3000 | ✅ | 1.4.0，workspace=`kdev` |
+| Jenkins | 执行层（Build/Test/Package/Deploy） | http://192.168.199.131:8082 | ❌ | 2.568.2-jdk21，2 job + win-build 节点 |
+| Nexus | 制品（包/镜像/依赖/Registry） | http://192.168.199.131:8081（UI）· http://192.168.199.131:8083（Registry） | ✅ | 数据 `/dockerData/nexus` |
+| RagFlow | 知识索引（检索/RAG，可重建投影） | http://192.168.199.131:9380 | ❌ | 本体对接中（模型层已就绪） |
 | AI Agent | 横向智能入口（不持有数据/不绕过权限） | — | ❌ | MCP 接入各组件 |
 
 **辅助服务**：
 
 | 服务 | 地址 | 用途 |
 |---|---|---|
-| RagFlow 模型服务 · embedding | `:6101` | TEI 1.8.3，BGE-M3（1024 维） |
-| RagFlow 模型服务 · reranker | `:6102` | TEI 1.8.3，bge-reranker-v2-m3 |
-| win-build agent | `192.168.199.249` | Jenkins Windows 构建节点（Windows Server 2022） |
-| mihomo 代理 | `:7897` HTTP · `:7898` SOCKS5 | 服务器拉镜像/拉 git 走代理（select 组固定 HKT01） |
+| RagFlow 模型服务 · embedding | http://192.168.199.131:6101 | TEI 1.8.3，BGE-M3（1024 维） |
+| RagFlow 模型服务 · reranker | http://192.168.199.131:6102 | TEI 1.8.3，bge-reranker-v2-m3 |
+| win-build agent | 192.168.199.249 | Jenkins Windows 构建节点（Windows Server 2022，无 HTTP 入口） |
+| mihomo 代理 | 192.168.199.131:7897（HTTP）· 192.168.199.131:7898（SOCKS5） | 服务器拉镜像/拉 git 走代理（select 组固定 HKT01） |
 
 ## 架构基线 v1.1
 
