@@ -76,7 +76,7 @@ services:
   infinity:
     profiles:
       - infinity
-    image: infiniflow/infinity:v0.7.3-x64-v3
+    image: infiniflow/infinity:v0.7.3-x64-v2
     volumes:
       - /dockerData/RagFlow/infinity:/var/infinity
       - ./infinity_conf.toml:/infinity_conf.toml
