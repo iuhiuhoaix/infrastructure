@@ -11,6 +11,11 @@ x-tei-common: &tei-common
     HUGGINGFACE_HUB_CACHE: /data
     HF_HOME: /data
     HF_ENDPOINT: ${HF_ENDPOINT:-https://huggingface.co}
+    # 国内网络：模型下载走 mihomo 代理（huggingface.co 支持 content-range，TEI 必需；
+    # hf-mirror 直连有 content-range 缺失兼容问题，TEI 1.8.3 无法使用）
+    http_proxy: ${HTTP_PROXY:-}
+    https_proxy: ${HTTPS_PROXY:-}
+    no_proxy: ${NO_PROXY:-127.0.0.1,localhost}
   healthcheck:
     test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://localhost/health"]
     interval: 15s
