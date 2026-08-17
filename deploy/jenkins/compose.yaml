@@ -18,7 +18,7 @@ services:
     ports:
       - "8082:8080"   # Web UI，内网直连（暂不绑 127.0.0.1，Nginx 未上）
     volumes:
-      - ./data:/var/jenkins_home:Z   # :Z — SELinux Enforcing 下容器可写（Fedora）
+      - ${JENKINS_DATA_DIR:-./data}:/var/jenkins_home:Z   # 数据路径可配（对齐 GitLab/Plane 的 /dockerData 布局；:Z — SELinux Enforcing 下容器可写）
       # 可选：让 Controller 能触发 Docker 构建（Linux Agent 模式）
       # - /var/run/docker.sock:/var/run/docker.sock
     networks:
