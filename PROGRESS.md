@@ -44,7 +44,7 @@
 ### 在 git 里的 — clone 即得，无需手动带
 - `deploy/`（全部 compose、.env.example、脚本）— 唯一准绳
 - `docs/`（架构文档 + 2 个 HTML）+ `README.md` + `PROGRESS.md`（本文件）
-- 远程 `git@ssh.github.com:443/iuhiuhoaix/infrastructure.git`，HEAD = 本地 `407261d`，完全同步
+- 远程 `git@ssh.github.com:443/iuhiuhoaix/infrastructure.git`，HEAD = 本地 `4ae2c33`，完全同步
 
 ### 不进 git — 必须手动带（3 样）
 | 路径 | 内容 | 为什么 |
@@ -61,7 +61,7 @@
 
 **方案 A：整目录复制（已选）** —— 本项目本地无运行时数据（data/.env/logs 全在服务器），整目录 copy 干净，`.workbuddy/memory/` 随目录自动带上，最省事：
 
-1. 复制前确认旧机 `git status` 干净（当前 `4ef97d1` 已 push，是干净的）
+1. 复制前确认旧机 `git status` 干净（当前 `4ae2c33` 已 push，是干净的）
 2. 复制用 `robocopy "D:\好大一个基建" "<新机路径>" /E /COPYALL /DCOPY:DAT`（或资源管理器复制，确认带上隐藏的 `.git`）
 3. 新机配置 SSH 密钥：生成 key → 加到 GitHub → 验证 `ssh -T -p 443 git@ssh.github.com`；remote 已是 `ssh://git@ssh.github.com:443`，**无需改 URL**
 4. 新机 `git pull` 确认与远端一致，读 README/PROGRESS.md/记忆重建上下文
