@@ -2,10 +2,11 @@
 # ⚠️ 镜像锁 digest：与服务器现有运行实例（2026-06-02 构建）完全一致，零升级风险。
 #    升级时显式改 NEXUS_IMAGE（.env 覆盖）并先做 blob 备份。
 #
-# 端口策略（只绑 127.0.0.1，由宿主机 Nginx 反代，不直接对外）：
-#   127.0.0.1:8081 -> 8081  Web UI / Maven / npm / NuGet / Generic
-#   127.0.0.1:8083 -> 8082  Docker Registry（Nginx: reg.example.com, client_max_body_size 0）
-# 内部 CI 流量：Jenkins/Build Agent 经 devops-internal 直连 http://nexus:8081
+# 端口策略（现阶段：无外网地址，走内网直连 0.0.0.0，对齐 GitLab 8080 / Plane 3000；等有外网地址再改回 127.0.0.1 + Nginx 反代）：
+#   8081 -> 8081  Web UI / Maven / npm / NuGet / Generic
+#   8083 -> 8082  Docker Registry（Nginx: reg.example.com, client_max_body_size 0）
+# 内部 CI 流量：同 Host Docker agent 经 devops-internal 直连 http://nexus:8081；
+# 独立 Windows agent（192.168.199.249 win-build）走宿主 IP 端口，故需 0.0.0.0 暴露。
 #
 # 数据：bind mount 到 ${NEXUS_DATA_DIR:-./data}，与旧实例数据无缝衔接（rsync 迁移）
 services:
@@ -16,8 +17,8 @@ services:
     restart: unless-stopped
     env_file: .env
     ports:
-      - "127.0.0.1:8081:8081"   # UI + 依赖仓库
-      - "127.0.0.1:8083:8082"   # Docker Registry
+      - "8081:8081"   # UI + 依赖仓库（内网直连；249 agent 需经宿主 IP 访问）
+      - "8083:8082"   # Docker Registry
     volumes:
       - ${NEXUS_DATA_DIR:-./data}:/nexus-data
     networks:
