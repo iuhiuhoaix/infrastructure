@@ -27,7 +27,7 @@
 | win-build agent | Jenkins Windows 构建节点 | Jenkins | `192.168.199.249` | 🟢 已部署 |
 | backup-all.sh | 统一备份调度 | 各组件 | `deploy/backup/` | 🟢 已就绪 |
 | restore-from-scratch.sh | 灾难恢复 | 各组件 | `deploy/dr/` | 🟢 已就绪 |
-| **notify 通知中心** | 事件路由 / 多通道推送 | devops-internal | `deploy/notify/` | 🟡 规划中 |
+| **notify 通知中心** | 事件路由 / 多通道推送 | devops-internal | `deploy/notify/` | 🟢 已部署（`192.168.199.131:8084`） |
 
 > **notify 定位**：**外围组件 + 公共设施**——不参与核心运转（不在 7 层主链路上，挂了业务照跑），但作为公共设施谁都能用。单容器 ntfy + 可选 Apprise 多通道网关，只做"事件 → 推送"一件事，不存消息、不做聊天、可重建。崩了重启即可，历史通知丢就丢。鉴权走 ntfy token + 私有 topic，不裸奔。
 >
