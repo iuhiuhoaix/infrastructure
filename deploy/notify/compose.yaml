@@ -1,0 +1,36 @@
+# ntfy 通知中心 — 外围公共设施 compose（2026-08-18）
+# 定位：外围组件 + 公共设施——只做"事件 → 推送"一件事，不存消息、不做聊天、可重建。
+#       不在 7 层主链路上，挂了业务照跑（详见 docs/tools-registry.md「notify 通知中心」）。
+# 选型：ntfy v2.26.3（Go 单二进制，10MB 镜像，MIT，活跃维护）
+#
+# 端口策略（现阶段：无外网地址，走内网直连 0.0.0.0，对齐 GitLab 8080 / Plane 3000；等有外网地址再改回 127.0.0.1 + Nginx 反代）：
+#   8084 -> 80   Web UI / HTTP API（pub/sub）
+#
+# 鉴权：ntfy token + auth-default-access=deny-all（私有 topic，不裸奔）
+#   首次部署：先 docker compose up -d，再
+#     docker exec ntfy ntfy user add --role=admin admin <密码>
+#     docker exec ntfy ntfy token add admin ops   # 输出 token 即为 API 凭据
+#   详见本目录 README.md
+#
+# 数据：bind mount 到 ${NTFY_DATA_DIR:-./data}（auth.db + 消息缓存，缓存超期即丢，符合转发即丢定位）
+services:
+  ntfy:
+    image: binwiederhier/ntfy:v2.26.3
+    container_name: ntfy
+    hostname: ntfy
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8084:80"   # Web UI + API（内网直连；Jenkins/AI Agent/轻量转换器经 devops-internal 走 http://ntfy）
+    volumes:
+      - ${NTFY_DATA_DIR:-./data}:/data
+    networks:
+      default: {}
+      devops-internal:
+        aliases:
+          - ntfy
+
+networks:
+  default: {}
+  devops-internal:
+    external: true
