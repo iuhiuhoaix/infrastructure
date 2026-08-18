@@ -19,6 +19,7 @@ services:
     container_name: ntfy
     hostname: ntfy
     restart: unless-stopped
+    command: serve   # 该镜像 Entrypoint=ntfy 且 CMD 为空，必须显式指定 serve
     env_file: .env
     ports:
       - "8084:80"   # Web UI + API（内网直连；Jenkins/AI Agent/轻量转换器经 devops-internal 走 http://ntfy）
