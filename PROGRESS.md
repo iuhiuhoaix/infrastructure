@@ -22,12 +22,13 @@
 | **win-build agent 上线** | `192.168.199.249`，Windows Server 2022，online（根因：旧 Jenkins 130 未关占着 agent） |
 | **数据目录统一 /dockerData** | GitLab/Plane/Nexus/Jenkins 全部迁移（`/dockerData/{gitlab,plane,nexus,jenkins}`） |
 | **ragflow-models 模型服务部署（TEI 双服务）** | embedding（BGE-M3）`:6101` + reranker（bge-reranker-v2-m3）`:6102`，均 healthy + smoke test 通过 |
+| **RagFlow 本体部署（官方 compose v0.26.4 + ES）** | `192.168.199.131:9380`，es/mysql/minio/redis 全健康；`embedding-service`/`reranker-service` 容器内对接验证通过，已可用（待接入知识库数据） |
 | 服务器 git 化切换 | `/opt/devops` → 软链 `/opt/infrastructure/deploy` |
 | Dify 已停、SVN 已删 | 80/443 释放 |
 | 服务器扩容 | 16C/31G → **32C/94G**（2026-08-17 晚） |
 
 ### 待办 🔜
-- **RagFlow 本体**：模型层（TEI embedding/reranker）已就绪，下一步拉官方 compose（`docker compose -p ragflow up -d`）对接：RAGFlow 注册 provider 用 Docker 网络别名 `embedding-service`/`reranker-service`；`.env` 配 `SVR_HTTP_PORT=9380` 对齐约定
+- **RagFlow 知识库接入**：本体已可用（Web `192.168.199.131:9380`），待灌入知识库数据（后续索引各 repo `docs/`，scope 对齐 GitLab 权限待设计）
 - **代码仓库迁 GitLab（131）**：目前代码还在 130 Gitea（job 走 HTTP 过渡拉取），迁后改 job URL + 凭据
 - **Nginx 反代 / TLS**：等有外网地址再统一接（现阶段内网直连）
 - 待深入：Nexus repo 划分策略 / Jenkins Label·Agent·Folder 组织 / RagFlow 权限 scope

@@ -11,9 +11,9 @@
 |---|---|---|---|---|
 | GitLab | 工程资产（代码/文档/配置/MR/Release 声明） | http://192.168.199.131:8080 · ssh://git@192.168.199.131:2222 | ✅ | 19.1.3-ce，数据 `/dockerData/gitlab` |
 | Plane | 项目工作（需求/任务/进度/里程碑） | http://192.168.199.131:3000 | ✅ | 1.4.0，workspace=`kdev` |
-| Jenkins | 执行层（Build/Test/Package/Deploy） | http://192.168.199.131:8082 | ❌ | 2.568.2-jdk21，2 job + win-build 节点 |
+| Jenkins | 执行层（Build/Test/Package/Deploy） | http://192.168.199.131:8082 | ❌ | 2.568.2-jdk21，2 job 全链路打通 + Gitea webhook 自动触发 + win-build 节点在线 |
 | Nexus | 制品（包/镜像/依赖/Registry） | http://192.168.199.131:8081（UI）· http://192.168.199.131:8083（Registry） | ✅ | 数据 `/dockerData/nexus` |
-| RagFlow | 知识索引（检索/RAG，可重建投影） | http://192.168.199.131:9380 | ❌ | 本体对接中（模型层已就绪） |
+| RagFlow | 知识索引（检索/RAG，可重建投影） | http://192.168.199.131:9380 | ❌ | 0.26.4，已可用（模型对接完成，待接入知识库数据） |
 | AI Agent | 横向智能入口（不持有数据/不绕过权限） | — | ❌ | MCP 接入各组件 |
 
 **辅助服务**：
@@ -83,7 +83,7 @@ kdev/                          (顶层 Group · 研发共享)
 │   ├── plane/    compose.yaml + .env.example   (PG+Redis+MinIO 自管)
 │   ├── jenkins/  compose.yaml + .env.example   (无内部依赖)
 │   ├── nexus/    compose.yaml + .env.example   (单容器)
-│   ├── ragflow/  compose.yaml + .env.example   (官方 v0.26.4，ES+PG+Redis+MinIO)
+│   ├── ragflow/  compose.yaml + .env.example   (官方 v0.26.4，ES+MySQL+Redis+MinIO)
 │   ├── ragflow-models/             TEI 模型服务（embedding + reranker，独立 compose）
 │   ├── nginx/conf.d/devops.conf    宿主机 Nginx 站点配置
 │   ├── backup/backup-all.sh        统一备份调度
