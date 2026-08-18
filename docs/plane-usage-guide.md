@@ -84,11 +84,12 @@ Module 按**工作维度**分，不是按技术组件分。以基建平台 INFRA
 
 ### GitLab 引用规范
 
-**三层引用**（主关联走字段，全量关联走描述，双向可追溯）：
+**两层引用**（描述里链接 + 双向引用，只互引不同步）：
 
-1. **主关联用结构化字段**：Plane Issue 的 `external_source="gitlab"` + `external_id="kdev/assets/infrastructure#15"`，程序可读，AI/工具能直接查对应 GitLab Issue。
-2. **描述里"关联资源"区**：列全量相关 GitLab 资源（一个需求可能拆多个 MR），用 Markdown 链接。
-3. **双向引用**：GitLab Issue/MR 描述里也贴 Plane Issue URL。
+1. **描述里"关联资源"区**：Plane Issue 描述列全量相关 GitLab 资源（一个需求可能拆多个 MR），用 Markdown 链接。
+2. **双向引用**：GitLab Issue/MR 描述里写一行 `Plane: INFRA-X`（可带链接），人眼能识别，将来 AI Agent 接 GitLab webhook 后可自动解析 → 在 Plane Issue 评论"!42 merged"。
+
+> 不用 `external_source`/`external_id` 字段——单值装不下多 MR 关联，手动填格式繁琐易漏。MR 描述里写 `Plane: INFRA-X` 更轻量，AI 也能解析。
 
 **链接文字约定**（团队统一，一眼识别类型）：
 
@@ -99,18 +100,20 @@ Module 按**工作维度**分，不是按技术组件分。以基建平台 INFRA
 | 文档/文件 | `[路径]` | `[docs/architecture-review.md]` |
 | commit | `[短hash]` | `[88feec6]` |
 
-**双向引用示例**（GitLab 侧）：
+**双向引用示例**（GitLab MR 描述里）：
 ```markdown
-## 业务需求
-Plane: [INFRA-1 RagFlow 本体对接](http://192.168.199.131:3000/kdev/INFRA/INFRA-1)
+Plane: INFRA-1
+
+## 改动说明
+...
 ```
 
 **不要做的事**：
 - ❌ 复制 GitLab MR 的 diff 到 Plane Issue——只贴链接，各系统自治
-- ❌ 手动同步状态——Plane 管需求状态，GitLab 管 MR 状态，各自流转
+- ❌ 自动同步状态——Plane 管需求状态，GitLab 管 MR 状态，各自流转（MR 合并自动评论 Plane Issue 是可以的，那是通知不是同步）
 - ❌ 贴裸 URL——用 `[!42 标题](url)` 替代长串 URL
 
-**原则**：主关联走 `external_source`/`external_id` 字段（程序可读），全量关联走描述里"关联资源"区（人类可读），双向贴 URL 保证可追溯，**只互引不同步**。
+**原则**：关联走描述里"关联资源"区 + MR 描述里 `Plane: INFRA-X` 约定，双向可追溯，**只互引不同步**。
 
 ### Module 关联
 - 每个 Issue 归属一个工作方向 Module
@@ -130,12 +133,20 @@ Plane: [INFRA-1 RagFlow 本体对接](http://192.168.199.131:3000/kdev/INFRA/INF
 **每个 repo 自带 `docs/` 目录**，文档跟着代码走（同 repo 一起 MR 评审、版本控制），不建独立 docs 仓库、不用 GitLab Wiki：
 
 ```
-kdev/assets/infrastructure/docs/    ← 基建平台文档
+kdev/assets/infrastructure/docs/    ← 基建平台文档（兼任公司公共知识库）
 kdev/assets/products/erp/docs/      ← ERP 产品文档
 kdev/客户/c0108/docs/               ← 客户交付文档
 ```
 
-**检索层汇聚**：RagFlow 索引所有 repo 的 `docs/`，AI Agent 跨 repo 检索——文档物理分布、逻辑统一。单个 repo 的 `docs/` 只管自己产品/客户的文档，跨产品知识检索交给 Agent/RagFlow。
+**`infrastructure` repo 兼任公司公共知识库**：跨 repo 的公共知识（开发规范、架构总览、跨产品约定）放这里，因为基建平台本身就是公司公共基础设施。其他 repo 的 `docs/` 只管自己产品/客户的文档。
+
+**文档格式**：
+- **Markdown 优先**：可 diff、可 MR 评审、RagFlow 索引友好
+- **docx/xlsx 等二进制**：可放 repo（合同、客户提供的正式文档），但无法 diff、会让 repo 膨胀——控制数量，多了改放对象存储（MinIO），repo 里只放 Markdown 索引 + 链接
+
+**小 repo 不强求 `docs/` 目录**：文档少的有 README 即可，文档多到需要结构化再建 `docs/`。
+
+**检索层汇聚**：RagFlow 索引各 repo 的 `docs/`，AI Agent 跨 repo 检索——文档物理分布、逻辑统一。**RagFlow 规划以客户为单位维护向量库**（数据隔离 + 检索精准），公共知识库单独维护，AI Agent 检索时按权限合并查询（实现待深入，不急）。
 
 ## 8. AI Agent / MCP 接入
 
