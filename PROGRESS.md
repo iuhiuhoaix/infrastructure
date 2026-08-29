@@ -23,12 +23,13 @@
 | **数据目录统一 /dockerData** | GitLab/Plane/Nexus/Jenkins 全部迁移（`/dockerData/{gitlab,plane,nexus,jenkins}`） |
 | **ragflow-models 模型服务部署（TEI 双服务）** | embedding（BGE-M3）`:6101` + reranker（bge-reranker-v2-m3）`:6102`，均 healthy + smoke test 通过 |
 | **RagFlow 本体部署（官方 compose v0.26.4 + ES）** | `192.168.199.131:9380`，es/mysql/minio/redis 全健康；`embedding-service`/`reranker-service` 容器内对接验证通过，已可用（待接入知识库数据） |
-| **ntfy 通知中心上线（notify）** | `192.168.199.131:8084`，v2.26.3，token+deny-all 鉴权，挂 devops-internal（别名 ntfy）；发/收/SSE 实时订阅测试全通过，token 在 `deploy/notify/.env` |
+| **knotify 通知网关上线（notify，替换 ntfy）** | `192.168.199.131:8084`，自研 Company.Notify（.NET 10），SQL Outbox 至少一次投递 + 状态机 + SignalR，挂 devops-internal（别名 knotify）；密钥在 `deploy/knotify/.env`，编排 `deploy/knotify/` |
 | 服务器 git 化切换 | `/opt/devops` → 软链 `/opt/infrastructure/deploy` |
 | Dify 已停、SVN 已删 | 80/443 释放 |
 | 服务器扩容 | 16C/31G → **32C/94G**（2026-08-17 晚） |
 
 ### 待办 🔜
+- **knotify 客户端接入**：客户接收端程序开发中；Jenkins post 块 / AI Agent 接入 `/api/v1/notifications`（`docs/tools-registry.md` 优化插件区，⚪ 待启动）
 - **RagFlow 知识库接入**：本体已可用（Web `192.168.199.131:9380`），待灌入知识库数据（后续索引各 repo `docs/`，scope 对齐 GitLab 权限待设计）
 - **代码仓库迁 GitLab（131）**：目前代码还在 130 Gitea（job 走 HTTP 过渡拉取），迁后改 job URL + 凭据
 - **Nginx 反代 / TLS**：等有外网地址再统一接（现阶段内网直连）
@@ -42,7 +43,7 @@
 | Plane | 3000 | 数据 `/dockerData/plane`，9 容器全健康，`.env` 密码同侧 |
 | Nexus | 8081 / 8083 | 数据 `/dockerData/nexus`（0.0.0.0 内网直连，win-build 249 需要） |
 | Jenkins | 8082 | 2.568.2-jdk21 镜像（锁 digest），数据 `/dockerData/jenkins`（2.8G 迁移自 130） |
-| ntfy（notify） | 8084 | v2.26.3，数据 `/opt/infrastructure/deploy/notify/data`，token+deny-all，admin/ops token 在 `deploy/notify/.env` |
+| knotify（notify） | 8084 | 自研 Company.Notify（.NET 10）替换 ntfy，数据 `deploy/knotify/data`（SQLite），发布 ApiKey/客户端 connect-token 在 `deploy/knotify/.env`；旧 ntfy 编排 `deploy/notify/` 已标注退役（待删除） |
 | ragflow-models embedding | 6101 | TEI cpu-1.8.3（锁 digest），BGE-M3 1024 维，12G 内存上限，数据 `/dockerData/RagFlow/models` |
 | ragflow-models reranker | 6102 | TEI cpu-1.8.3，bge-reranker-v2-m3，12G 内存上限 |
 | mihomo | 7897 HTTP / 7898 SOCKS5 | 服务器拉镜像/拉 git 走 7897 代理；**select 组固定 HKT01**（凤凰城03 对 ghcr 不稳） |

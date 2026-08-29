@@ -10,7 +10,7 @@
 
 | 工具 | 作用 | 对应组件 / 基建 | 依赖 |
 |---|---|---|---|
-| `ntfy-sub.py` | ntfy 消息订阅客户端：实时收通知 / 发测试消息 / 拉最近消息 | **notify 通知中心**（ntfy v2.26.3，`192.168.199.131:8084`，部署位 `deploy/notify/`） | Python 3.9+，标准库零第三方依赖 |
+| `ntfy-sub.py` | ~~ntfy 消息订阅客户端~~（**已退役**：ntfy 已被自研网关 knotify 替换，见 `deploy/knotify/`；订阅改用 knotify 官方 CLI / WPF / Web 客户端） | notify 通知中心（历史：ntfy v2.26.3） | Python 3.9+，标准库零第三方依赖 |
 
 ---
 
@@ -47,6 +47,8 @@ python ntfy-sub.py --once devops-test
 | `NTFY_TOKEN` | 空 | 访问 token（deny-all 下必填，从服务器 `.env` 的 `NOTIFY_OPS_TOKEN` 取） |
 
 > 已知坑（已内置规避）：HTTP 头只支持 ASCII，中文标题自动丢弃、消息正文不受影响；`json?poll=1` 返回 NDJSON 需逐行解析。
+
+> ⚠️ **退役说明（2026-08-29）**：notify 通知中心已由自研网关 **knotify（Company.Notify）** 替换（选型与差异见 `deploy/knotify/README.md` 及 knotify repo `docs/ADR-001-ntfy-evaluation.md`）。本脚本所依赖的 ntfy 服务下线后即失效，**冻结不再维护**；订阅需求改用 knotify 客户端（CLI `src/Company.Notify.Client.Cli` / WPF `src/Company.Notify.Client.Desktop` / Web `Client.Web/index.html`），接入示例见 `deploy/knotify/README.md`。
 
 ### topic 命名规范（约定）
 
