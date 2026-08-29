@@ -1,0 +1,47 @@
+# knotify 通知网关 — 外围公共设施 compose（2026-08-29）
+# 定位：外围组件 + 公共设施——自研统一消息推送网关（Company.Notify），替换原 ntfy。
+#       只做"事件 → 定向投递"一件事：统一发布 API + SQL Outbox 至少一次投递 + 状态机 + SignalR 实时推送。
+#       不在 7 层主链路上，挂了业务照跑（详见 docs/tools-registry.md「notify 通知中心」）。
+# 源码：独立仓库 git@192.168.199.131:kdev/assets/knotify.git（kdev/assets = 自有资产区）。
+#       基建 repo 不复制源码（禁止产品源码分叉红线），compose build context 指向服务器上的源码 clone。
+# 选型：.NET 10 自研网关（替换 ntfy 的理由见 knotify repo docs/ADR-001-ntfy-evaluation.md）
+#
+# 端口策略（现阶段：无外网地址，走内网直连 0.0.0.0，对齐 GitLab 8080 / Plane 3000；等有外网地址再改回 127.0.0.1 + Nginx 反代）：
+#   8084 -> 8080   REST API + SignalR + Swagger（沿用原 ntfy 端口，替换平滑，客户端配置零改动）
+#
+# 鉴权（双轨，详见 knotify repo docs/API.md）：
+#   发布方（业务系统）   X-Api-Key 头（作用于 /api/v1/ 发布/令牌签发）
+#   客户端（人/设备）    connect-token 签发的 Bearer accessToken（查询/Hub/Ack）
+#   生产 fail-fast：ConnectTokenSecret / ProcessorSecret / AdminToken 为空或含 change-me 占位值时网关拒绝启动
+#
+# 数据：bind mount 到 ${KNOTIFY_DATA_DIR:-./data}（SQLite notify.db + 审计日志，EnsureSchema=true 自动建库）
+services:
+  knotify:
+    build:
+      context: ${KNOTIFY_SRC:-/opt/knotify}   # knotify 源码 clone 路径（服务器上 git clone 所得）
+      dockerfile: deploy/Dockerfile.api
+    image: knotify-gateway:0.1.0
+    container_name: knotify
+    hostname: knotify
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8084:8080"   # REST/SignalR（内网直连；Jenkins/AI Agent/转换器经 devops-internal 走 http://knotify:8080）
+    volumes:
+      - ${KNOTIFY_DATA_DIR:-./data}:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]   # Dockerfile 已内置 curl
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      default: {}
+      devops-internal:
+        aliases:
+          - knotify
+
+networks:
+  default: {}
+  devops-internal:
+    external: true
