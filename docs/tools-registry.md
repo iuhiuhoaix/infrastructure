@@ -27,27 +27,24 @@
 | win-build agent | Jenkins Windows 构建节点 | Jenkins | `192.168.199.249` | 🟢 已部署 |
 | backup-all.sh | 统一备份调度 | 各组件 | `deploy/backup/` | 🟢 已就绪 |
 | restore-from-scratch.sh | 灾难恢复 | 各组件 | `deploy/dr/` | 🟢 已就绪 |
-| **notify 通知中心** | 事件路由 / 多通道推送 | devops-internal | `deploy/notify/` | 🟢 已部署（`192.168.199.131:8084`） |
+| **notify 通知中心** | 统一消息推送网关（发布/投递/接收） | devops-internal | `deploy/knotify/` | 🟢 已部署（`192.168.199.131:8084`，knotify 替换 ntfy） |
 
-> **notify 定位**：**外围组件 + 公共设施**——不参与核心运转（不在 7 层主链路上，挂了业务照跑），但作为公共设施谁都能用。单容器 ntfy + 可选 Apprise 多通道网关，只做"事件 → 推送"一件事，不存消息、不做聊天、可重建。崩了重启即可，历史通知丢就丢。鉴权走 ntfy token + 私有 topic，不裸奔。
+> **notify 定位**：**外围组件 + 公共设施**——不参与核心运转（不在 7 层主链路上，挂了业务照跑），但作为公共设施谁都能用。自研网关 knotify（Company.Notify，.NET 10），只做"事件 → 定向投递"一件事：统一发布 API + SQL Outbox 至少一次投递 + 状态机 + SignalR 实时推送，零中间件依赖（不引入 Kafka/RabbitMQ）。崩了重启即可，可重建。
 >
-> **接收端开放订阅**：ntfy 天生 pub/sub topic 制，接收端随意使用、零成本扩展——桌面弹幕、企业微信群机器人、钉钉、邮件、手机 App 全是消费方，各订阅各的 topic；想加通道 Apprise 配一行 URL，不碰 notify 本体；不想用就不订阅，无任何强制。接收端的开放性不依赖 notify 是否核心组件。
+> **选型（2026-08-29 替换）**：~~ntfy v2.26.3~~ → **knotify（自研）**。ntfy 是 topic 广播模型，无"接收人"概念、无服务端送达状态机、无 Windows 原生客户端、Go 技术栈与 C# 资产不匹配；自研网关补齐逐用户定向投递/状态机/ACK/用户级游标补拉/发布方认证限流/审计（完整评估见 knotify repo `docs/ADR-001-ntfy-evaluation.md`）。旧 ntfy 编排保留于 `deploy/notify/`（已标注退役，仅供回滚）。
 >
-> **边界（不做日志集中）**：notify 是消息/事件的转发层，不是日志平台。**消息** = 瞬时通知（构建完成、MR 创建、任务分配），转发即丢；**日志** = 需留存、可查、可审计的记录（Jenkins build log / GitLab audit log），归各系统自治。notify 不吞日志——一旦开始集中存储日志，就从"转发即丢的公共设施"变成"数据持有者"，违背外围组件定位。集中日志是另一个决策，且 12 人规模按克制原则不需要。
+> **接入模型（knotify，双轨认证）**：发布方（业务系统）`X-Api-Key` 头 POST `/api/v1/notifications`，`recipients` 按**用户/角色**定向投递（或 `topic` 广播）；客户端持 ApiKey 签 `connect-token` → Bearer accessToken → 查询/Hub/Ack。投递状态服务端可查（Delivered/Read/Failed/Expired），客户端回传 ACK 推进。详细见 `deploy/knotify/README.md`。
 >
-> **选型：ntfy**（v2.26.3，Go 单二进制，10MB 镜像，MIT，活跃维护）。服务端不写代码：Docker 部署，HTTP PUT/POST 发消息，topic pub/sub，token 鉴权 + `deny-all`，消息保留可配（离线设备上线补收）。
->
-> **接收端（自由组件，几乎全现成）**：
+> **接收端（多端客户端已备）**：
 >
 > | 接收端 | 现成? | 方案 |
 > |---|---|---|
-> | Android / iOS 手机 | ✅ 现成 | ntfy 官方 App |
-> | Web 浏览器 | ✅ 现成 | ntfy 自带 web UI，弹桌面通知 |
-> | 桌面横幅（Windows） | ✅ 半现成 | web 桌面通知 / 社区 ntfy-desktop |
-> | 企业微信 / 钉钉群机器人 | ✅ 现成 | webhook 配置即用 |
-> | 邮件 | ✅ 现成 | ntfy 自带 SMTP 转发 |
-> | 多通道网关（100+ 通道） | ✅ 可选 | Apprise，小规模不一定需要 |
-> | **桌面弹幕** | ⚠️ 自写 | 无现成，Tauri/Electron 订阅 topic，几百行 |
+> | Web 浏览器 | ✅ 现成 | 自包含页面 `Client.Web/index.html`（SignalR 实时接收 + 自动 Ack） |
+> | Windows 桌面 | ✅ 现成 | WPF 桌面代理（托盘/Toast/未读角标/免打扰/自启） |
+> | 命令行 | ✅ 现成 | C# CLI（`listen` / `sync` / `ack-delivered` / `ack-read`） |
+> | **客户接收端程序** | 🔧 开发中 | 面向客户的客户端程序（接入模式同上三端） |
+>
+> **边界（不做日志集中）**：notify 是消息/事件的转发层，不是日志平台。**消息** = 瞬时通知（构建完成、MR 创建、任务分配），转发即丢（knotify 保留投递状态与审计，但不等同日志平台）；**日志** = 需留存、可查、可审计的记录（Jenkins build log / GitLab audit log），归各系统自治。notify 不吞日志——一旦开始集中存储日志，就从"转发即丢的公共设施"变成"数据持有者"，违背外围组件定位。集中日志是另一个决策，且 12 人规模按克制原则不需要。
 
 ---
 
@@ -55,10 +52,10 @@
 
 | 名称 | 职能 | 依赖 | 部署位 | 状态 |
 |---|---|---|---|---|
-| 桌面弹幕插件 | 横幅 / 弹幕推送（自写 Tauri / Electron） | notify | 各人桌面 | ⚪ 待启动 |
-| ntfy 手机订阅 | 出差看构建状态 | notify | 手机 App | ⚪ 待启动 |
+| 桌面弹幕插件 | 横幅 / 弹幕推送（自写 Tauri / Electron，订阅 knotify） | knotify | 各人桌面 | ⚪ 待启动 |
+| 手机订阅 | 出差看构建状态（knotify 暂无手机端，先用 `Client.Web` 页面代替） | knotify | 浏览器 | ⚪ 待启动 |
 
-> 玩具不进服务器编排，不进备份。各人按需装，坏了重装。桌面弹幕插件订阅 notify topic，横幅模式右上角滑出、弹幕模式飘屏——工程量是周末玩具级，还能按自己审美调。
+> 玩具不进服务器编排，不进备份。各人按需装，坏了重装。桌面弹幕插件订阅 knotify topic（或 WebSocket），横幅模式右上角滑出、弹幕模式飘屏——工程量是周末玩具级，还能按自己审美调。原 ntfy 手机 App 订阅随 ntfy 下线作废。
 
 ---
 
@@ -66,19 +63,19 @@
 
 | 组件 | 接入能力 | 方式 | 需自建? | 状态 |
 |---|---|---|---|---|
-| **Jenkins** | ✅ 原生直连 | job `post` 步骤 curl ntfy（消息文本自组装） | 否 | ⚪ 待启动 |
+| **Jenkins** | ✅ 原生直连 | job `post` 步骤 curl POST `/api/v1/notifications`（`X-Api-Key` 头，`recipients` 定向或 `topic` 广播，消息文本自组装） | 否 | ⚪ 待启动 |
 | **GitLab** | ⚠️ 半直连 | 原生 webhook（Push / MR / Release），payload 是 JSON 需转换 | 轻量转换器 | ⚪ 待启动 |
 | **Plane** | ⚠️ 半直连 | 原生 webhook v2（workitem 事件），payload JSON 需转换；**注意 Plane 要求 URL 公网可达，内网部署需验证/绕过** | 轻量转换器 + 验证内网限制 | ⚪ 待启动 |
 | **Nexus** | ⚠️ 半直连 | 原生 webhook capability（Component Created/Updated，OSS 有基础版），payload JSON + HMAC 签名需转换 | 轻量转换器 | ⚪ 待启动 |
 | **RagFlow** | ❌ 不接入 | 非事件源（检索层，被动被查）；如需"索引完成"通知无原生 webhook | 自建触发器（轮询 API） | ⚪ 暂不接 |
-| **AI Agent** | ✅ 原生直连 | Agent 执行完任务直接 HTTP POST ntfy（Agent 即触发器） | 否 | ⚪ 待启动 |
+| **AI Agent** | ✅ 原生直连 | Agent 执行完任务直接 HTTP POST `/api/v1/notifications`（Agent 即触发器） | 否 | ⚪ 待启动 |
 
 > **接入分三档**：
-> - **原生直连**（Jenkins、AI Agent）：自己组装消息文本 POST ntfy，ntfy 直接显示，零转换、零自建。Jenkins 在 pipeline `post` 块里 curl 一行；AI Agent 是天然行动出口，代码里加一个 POST 调用。
-> - **半直连**（GitLab、Plane、Nexus）：原生 webhook 能打到 ntfy，但 payload 是结构化 JSON——要么接受手机收到一坨 JSON（丑但能用），要么写个**轻量转换器**（按来源路由，提取关键字段重组再 POST ntfy，可共用一个转换服务，几十行）。
+> - **原生直连**（Jenkins、AI Agent）：自己组装消息文本 POST knotify `/api/v1/notifications`（`X-Api-Key` 头，按用户/角色定向或 topic 广播），零转换、零自建。Jenkins 在 pipeline `post` 块里 curl 一行；AI Agent 是天然行动出口，代码里加一个 POST 调用。
+> - **半直连**（GitLab、Plane、Nexus）：原生 webhook 能打到 knotify，但 payload 是结构化 JSON——要么接受客户端收到一坨 JSON（丑但能用），要么写个**轻量转换器**（按来源路由，提取关键字段重组再 POST knotify，可共用一个转换服务，几十行）。
 > - **不接入 / 自建触发器**（RagFlow）：检索层非事件源，默认不接；若要"索引/同步完成"通知，RagFlow 无原生 webhook，需自建触发器轮询其 API。
 >
-> **Plane 内网坑**：Plane 官方文档要求 webhook Payload URL 公网可达（拒 localhost / 私有 IP）。自托管内网部署（notify 在 `192.168.199.131:8084`）可能被该校验拦截——需验证自托管版是否放宽，或用反代/内网穿透绕过；若绕不过，Plane 改走自建触发器轮询 API。
+> **Plane 内网坑**：Plane 官方文档要求 webhook Payload URL 公网可达（拒 localhost / 私有 IP）。自托管内网部署（knotify 在 `192.168.199.131:8084`）可能被该校验拦截——需验证自托管版是否放宽，或用反代/内网穿透绕过；若绕不过，Plane 改走自建触发器轮询 API。
 >
 > **接入原则**：各系统原生 webhook / post hook 优先，不装侵入式插件，不改业务逻辑。notify 挂了不影响各系统主流程（最坏就是少收一条通知）。
 
