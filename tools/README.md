@@ -10,7 +10,62 @@
 
 | 工具 | 作用 | 对应组件 / 基建 | 依赖 |
 |---|---|---|---|
-| `ntfy-sub.py` | ~~ntfy 消息订阅客户端~~（**已退役**：ntfy 已被自研网关 knotify 替换，见 `deploy/knotify/`；订阅改用 knotify 官方 CLI / WPF / Web 客户端） | notify 通知中心（历史：ntfy v2.26.3） | Python 3.9+，标准库零第三方依赖 |
+| `knotify-pub.py` | knotify 通知发布：POST `/api/v1/notifications`（`X-Api-Key`，按接收人定向 / topic 广播） | **notify 通知中心**（knotify 自研网关，`192.168.199.131:8084`，部署位 `deploy/knotify/`） | Python 3.9+，标准库零第三方依赖 |
+| `knotify-sub.py` | knotify 通知订阅：签 connect-token → 查未读 → 自动回执；`--listen` 轮询监听 / `--test` 自测链路 | 同上 | Python 3.9+，标准库零第三方依赖 |
+| `ntfy-sub.py` | ~~ntfy 消息订阅客户端~~（**已退役**：ntfy 已被自研网关 knotify 替换，见 `deploy/knotify/`；订阅改用本目录 knotify-sub.py 或 knotify 官方 CLI/WPF/Web 客户端） | notify 通知中心（历史：ntfy v2.26.3） | Python 3.9+，标准库零第三方依赖 |
+
+---
+
+## knotify-pub.py / knotify-sub.py
+
+### 是什么
+
+notify 通知中心（knotify 自研网关）的发布/订阅脚本，Python 标准库零依赖，替代已退役的 ntfy-sub.py。
+
+### 对应组件
+
+- **notify 通知中心**（knotify / Company.Notify，.NET 10）
+  - 服务地址：`http://192.168.199.131:8084`
+  - 部署骨架（compose / .env.example / 运维手册）：`deploy/knotify/`
+  - 服务端密钥（ApiKey / ConnectTokenSecret 等）：服务器 `/opt/infrastructure/deploy/knotify/.env`
+  - 完整 API：knotify repo `docs/API.md`
+
+### 用法
+
+```bash
+# 环境变量
+set KNOTIFY_SERVER=http://192.168.199.131:8084
+set KNOTIFY_API_KEY=<服务器 deploy/knotify/.env 的 Seed__ApiKey>
+set KNOTIFY_RECIPIENT=user:10021
+
+# 发送（按接收人定向 / topic 广播）
+python knotify-pub.py --title "构建完成" --body "v1.0 SUCCESS" --recipient user:10021 --priority high
+python knotify-pub.py --body "下午 4 点周会" --topic ops.alerts --source meeting
+
+# 接收（拉一次未读并自动回执）
+python knotify-sub.py --recipient user:10021
+
+# 接收（轮询监听，新消息即打印）
+python knotify-sub.py --recipient user:10021 --listen
+
+# 自测链路（发一条给自己再拉回验证）
+python knotify-sub.py --test
+```
+
+| 环境变量 | 默认值 | 说明 |
+|---|---|---|
+| `KNOTIFY_SERVER` | `http://192.168.199.131:8084` | 网关地址 |
+| `KNOTIFY_API_KEY` | 空 | 发布方 ApiKey（必填，`X-Api-Key` 头） |
+| `KNOTIFY_RECIPIENT` | 空 | 默认接收人（如 `user:10021`） |
+
+> 接收人格式：`user:<id>` / `role:<name>`；`--listen` 是轮询替代 SignalR（实时推送走 `/hubs/notifications`，零依赖脚本用轮询够用）。
+
+### 接收人 / topic 约定
+
+knotify 是**按接收人定向投递**模型（区别于 ntfy 的 topic 广播）：
+- 定向：`--recipient user:10021`（逐人独立投递记录 + 状态机）
+- 广播：`--topic ops.alerts`（该 topic 当前订阅者全收）
+- 事件类型沿用 `{项目/客户}.{事件类型}` 约定（如 `c0108.ci`），放 `--event-type` 字段
 
 ---
 
