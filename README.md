@@ -77,6 +77,7 @@ kdev/                          (顶层 Group · 研发共享)
 ├── docs/                       # 架构设计文档
 │   ├── architecture-review.md      架构基线 v1.1（6 组件职能 + 12 项判断）
 │   ├── gitlab-plane-model.md       GitLab/Plane 组织模型
+│   ├── server-migration-2026-09.md 整机迁移复盘 + 可复现 Runbook（含端口/内存基线、9 个踩坑）
 │   ├── architecture.html           业务架构（Customer→Plane→GitLab→Jenkins→Nexus→Deploy）
 │   └── deploy-architecture.html    部署架构（Compose/Network/Nginx/备份/灾难恢复）
 ├── deploy/                     # 部署骨架（对应宿主机 /opt/infrastructure/deploy/）
