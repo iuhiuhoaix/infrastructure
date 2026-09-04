@@ -141,7 +141,7 @@ networks:
 
 建议起始宿主机至少 16 个逻辑 CPU、24 GiB RAM，并为 RAGFlow 数据服务另留资源。默认给每个模型 8 CPU、8 GiB 上限；BGE-M3 与 reranker 都是约 568M 参数的 24 层 XLM-R 模型，CPU 推理和首次加载并不轻。低于该规格时先调低并发，不要通过取消内存上限掩盖容量问题。
 
-> **迁移实证（2026-09，96G → 32G 宿主机）**：TEI warmup 的预分配随 `--max-batch-tokens` 显著膨胀。`EMBEDDING_MAX_BATCH_TOKENS=16384` 时 embedding 容器 RSS 冲到 ~12.5 GiB，12g 上限直接被 cgroup OOM；降到 `8192` 后稳定在 ~11.5 GiB。**内存 ≤32 GiB 的宿主机请在 `.env` 里显式设置 `EMBEDDING_MAX_BATCH_TOKENS=8192`**（对 RAGFlow 的 chunk 规模吞吐无感）。整机跑全栈（GitLab ~9G + 模型 ~15G + ES/RagFlow/Nexus ~6G）建议 64 GiB RAM。
+> **迁移实证（2026-09，96G → 32G → 64G 宿主机）**：TEI 的内存需求分两层——warmup 固定开销随 `--max-batch-tokens` 增长（`16384` 时 anon 需求 ~12.5 GiB，`8192` 时 ~11.5 GiB），warmup 超过 `mem_limit` 就会 cgroup OOM；warmup 之后 arena 还会**继续保留内存逼近上限**（给 16g 吃到 15.7g、给 20g 吃到 19.6g，是分配器驻留而非真实需求，无需恐慌也不要再追加上限）。经验值：**小内存机（≤32G）用 `MAX_BATCH_TOKENS=8192` + `MEMORY_LIMIT=12g`；内存宽裕（≥64G）用 `16384` + `MEMORY_LIMIT=20g`**。整机全栈（GitLab ~9G + 模型 ~30G + ES/RagFlow/Nexus ~10G）建议 64 GiB RAM。
 
 ```bash
 cd /opt/devops/ragflow-models
