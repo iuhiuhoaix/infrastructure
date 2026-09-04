@@ -34,6 +34,7 @@ dev-team/                        ← 顶层 Group [internal · 研发全员共�
   - 客户区：① 客户插件/定制 ② 客户资料（config/docs，最需隔离的，但现在全员共享）
   - assets 区：③ 自有产品 ④ 通用组件/工具
 - **通用插件归 assets**：被多个客户复用的插件不依附特定客户，归 `assets/`，避免复制分叉
+- **命名约定**：assets 下 repo 命名 + .NET 命名空间规则见 `docs/naming-conventions.md`（公司前缀 `JSD`，金蝶系 `JSD.Kingdee.*`）
 
 ### 权限模型
 
